@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { 
   Star, 
   Trophy, 
@@ -113,9 +114,12 @@ export function ChallengeCard({ challenges = [] }) {
               <Button 
                 className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors"
                 size="sm"
+                asChild
               >
-                <Play className="h-3 w-3 mr-1" />
-                Start
+                <Link href={`/challenges/${challenge.id}`}>
+                  <Play className="h-3 w-3 mr-1" />
+                  Start
+                </Link>
               </Button>
             </div>
           </div>

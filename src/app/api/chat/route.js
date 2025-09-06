@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { cookies } from 'next/headers';
-import { openaiService } from '@/lib/openai-service';
+import { anthropicService } from '@/lib/anthropic-service';
 
 const prisma = new PrismaClient();
 
@@ -13,7 +13,6 @@ async function getUserStats(userId) {
       institution: true,
       _count: {
         select: {
-          solvedChallenges: true,
           createdLessons: true,
         },
       },
@@ -106,6 +105,56 @@ async function getRecentLessons(userId, limit = 3) {
   });
 }
 
+async function getChallengeContext(challengeId) {
+  if (!challengeId) return null;
+  
+  const challenge = await prisma.challenge.findUnique({
+    where: { id: parseInt(challengeId) },
+    include: {
+      institution: true,
+      _count: {
+        select: { userChallenges: true }
+      }
+    }
+  });
+
+  if (!challenge) return null;
+
+  return {
+    id: challenge.id,
+    statement: challenge.statement,
+    help: challenge.help,
+    level: challenge.level
+    // Don't include the solution - we want to help without giving it away
+  };
+}
+
+async function getLessonContext(lessonId) {
+  if (!lessonId) return null;
+  
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: parseInt(lessonId) },
+    include: {
+      institution: true,
+      creator: {
+        select: { name: true, alias: true }
+      }
+    }
+  });
+
+  if (!lesson) return null;
+
+  return {
+    id: lesson.id,
+    title: lesson.title,
+    description: lesson.description,
+    content: lesson.content,
+    creator: lesson.creator,
+    institution: lesson.institution?.name,
+    created_at: lesson.created_at,
+  };
+}
+
 // System prompt is now handled by the openaiService in config/chat-config.js
 
 export async function POST(request) {
@@ -138,7 +187,7 @@ export async function POST(request) {
       );
     }
 
-    const { message, conversationHistory } = await request.json();
+    const { message, conversationHistory, context } = await request.json();
 
     if (!message) {
       return NextResponse.json(
@@ -157,15 +206,26 @@ export async function POST(request) {
       getRecentLessons(userId),
     ]);
 
-    // Generate AI response using OpenAI with context
+    // Get specific context based on current page/context
+    let specificContext = null;
+    if (context) {
+      if (context.type === 'challenge' && context.challengeId) {
+        specificContext = await getChallengeContext(context.challengeId);
+      } else if (context.type === 'lesson' && context.lessonId) {
+        specificContext = await getLessonContext(context.lessonId);
+      }
+    }
+
+    // Generate AI response using Anthropic with context
     const contextData = {
       userStats,
       institutionStats,
       popularChallenges,
       recentLessons,
+      specificContext: specificContext ? { type: context.type, data: specificContext } : null,
     };
 
-    const response = await openaiService.generateResponse(
+    const response = await anthropicService.generateResponse(
       message,
       conversationHistory,
       contextData
@@ -182,4 +242,4 @@ export async function POST(request) {
   }
 }
 
-// OpenAI-based response generation is now handled by openaiService.generateResponse()
+// Anthropic-based response generation is now handled by anthropicService.generateResponse()

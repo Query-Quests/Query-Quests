@@ -5,7 +5,7 @@
  * Run with: node scripts/test-chatbot.js
  */
 
-import { openaiService } from '../lib/openai-service.js';
+import { anthropicService } from '../lib/anthropic-service.js';
 import { CHAT_CONFIG } from '../config/chat-config.js';
 
 // Mock user data for testing
@@ -49,24 +49,24 @@ async function testChatbot() {
 
   // Test configuration
   console.log('📋 Testing Chat Configuration...');
-  console.log(`- OpenAI Model: ${CHAT_CONFIG.OPENAI_MODEL}`);
-  console.log(`- Max Tokens: ${CHAT_CONFIG.OPENAI_MAX_TOKENS}`);
-  console.log(`- Temperature: ${CHAT_CONFIG.OPENAI_TEMPERATURE}`);
+  console.log(`- Anthropic Model: ${CHAT_CONFIG.ANTHROPIC_MODEL}`);
+  console.log(`- Max Tokens: ${CHAT_CONFIG.ANTHROPIC_MAX_TOKENS}`);
+  console.log(`- Temperature: ${CHAT_CONFIG.ANTHROPIC_TEMPERATURE}`);
   console.log(`- Max History: ${CHAT_CONFIG.MAX_HISTORY_LENGTH}`);
-  console.log(`- API Key: ${CHAT_CONFIG.OPENAI_API_KEY ? '✅ Configured' : '❌ Not configured'}`);
+  console.log(`- API Key: ${CHAT_CONFIG.ANTHROPIC_API_KEY ? '✅ Configured' : '❌ Not configured'}`);
   console.log('');
 
   // Test initialization
-  console.log('📋 Testing OpenAI service initialization...');
-  if (!openaiService.initialize()) {
-    console.error('❌ OpenAI service initialization failed. Please check your API key.');
+  console.log('📋 Testing Anthropic service initialization...');
+  if (!anthropicService.initialize()) {
+    console.error('❌ Anthropic service initialization failed. Please check your API key.');
     console.log('\n🔧 Configuration Issues:');
-    console.log('- Check if OPENAI_API_KEY is set in your environment');
+    console.log('- Check if ANTHROPIC_API_KEY is set in your environment');
     console.log('- Verify the API key is valid and has sufficient credits');
-    console.log('- Ensure the model specified is available in your OpenAI account');
+    console.log('- Ensure the model specified is available in your Anthropic account');
     process.exit(1);
   }
-  console.log('✅ OpenAI service initialized successfully!\n');
+  console.log('✅ Anthropic service initialized successfully!\n');
 
   // Test each question
   for (let i = 0; i < testQuestions.length; i++) {
@@ -74,7 +74,7 @@ async function testChatbot() {
     console.log(`❓ Question ${i + 1}: "${question}"`);
 
     try {
-      const response = await openaiService.generateResponse(
+      const response = await anthropicService.generateResponse(
         question,
         [], // Empty conversation history for testing
         mockContextData
@@ -91,7 +91,7 @@ async function testChatbot() {
 
   console.log('🎉 Chatbot testing completed!');
   console.log('\n💡 Tips:');
-  console.log('- If you see API errors, check your OpenAI API key');
+  console.log('- If you see API errors, check your Anthropic API key');
   console.log('- Adjust the system prompt in config/chat-config.js for different behavior');
   console.log('- Modify temperature and token settings for different response styles');
   console.log('\n🔧 Configuration File: src/config/chat-config.js');

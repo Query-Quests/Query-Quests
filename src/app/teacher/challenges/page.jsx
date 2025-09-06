@@ -17,7 +17,8 @@ import {
   Filter,
   TrendingUp,
   Users,
-  Award
+  Award,
+  Trash2
 } from "lucide-react";
 import Link from "next/link";
 
@@ -30,6 +31,8 @@ export default function TeacherChallenges() {
   const [selectedChallenge, setSelectedChallenge] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [challengeToDelete, setChallengeToDelete] = useState(null);
 
   const fetchChallenges = useCallback(async (userData) => {
     try {
@@ -40,13 +43,14 @@ export default function TeacherChallenges() {
       }
       
       // Fetch challenges for the teacher's institution
-      const response = await fetch(`/api/challenges?institutionId=${userData.institution_id}`);
+      const response = await fetch(`/api/challenges?institution=${userData.institution_id}`);
       if (response.ok) {
         const challengesData = await response.json();
-        setChallenges(challengesData);
+        setChallenges(challengesData.challenges || []);
       }
     } catch (error) {
       console.error("Error fetching challenges:", error);
+      setChallenges([]);
     }
   }, []);
 
@@ -64,6 +68,7 @@ export default function TeacherChallenges() {
       }
     } catch (error) {
       console.error("Error fetching teacher data:", error);
+      setChallenges([]);
     } finally {
       setIsLoading(false);
     }
@@ -75,7 +80,7 @@ export default function TeacherChallenges() {
 
 
 
-  const filteredChallenges = challenges.filter(challenge => {
+  const filteredChallenges = (Array.isArray(challenges) ? challenges : []).filter(challenge => {
     const matchesSearch = challenge.statement.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          challenge.help?.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -143,6 +148,33 @@ export default function TeacherChallenges() {
     }
   };
 
+  const handleDeleteChallenge = (challenge) => {
+    setChallengeToDelete(challenge);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteChallenge = async () => {
+    if (!challengeToDelete) return;
+
+    try {
+      const response = await fetch(`/api/challenges/${challengeToDelete.id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        await fetchChallenges(user); // Refresh the list
+        setIsDeleteModalOpen(false);
+        setChallengeToDelete(null);
+      } else {
+        const errorData = await response.json();
+        alert(`Error deleting challenge: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error("Error deleting challenge:", error);
+      alert("Error deleting challenge");
+    }
+  };
+
 
 
   if (isLoading) {
@@ -196,7 +228,7 @@ export default function TeacherChallenges() {
               <Book className="h-4 w-4 text-blue-600" />
               <span className="text-sm font-medium">Institution Challenges</span>
             </div>
-            <p className="text-2xl font-bold">{challenges.length}</p>
+            <p className="text-2xl font-bold">{Array.isArray(challenges) ? challenges.length : 0}</p>
             {user?.institution ? (
               <p className="text-xs text-muted-foreground">{user.institution.name}</p>
             ) : (
@@ -211,7 +243,7 @@ export default function TeacherChallenges() {
               <span className="text-sm font-medium">Average Level</span>
             </div>
             <p className="text-2xl font-bold">
-              {challenges.length > 0 
+              {Array.isArray(challenges) && challenges.length > 0 
                 ? Math.round(challenges.reduce((sum, c) => sum + c.level, 0) / challenges.length)
                 : 0}
             </p>
@@ -224,7 +256,7 @@ export default function TeacherChallenges() {
               <span className="text-sm font-medium">Total Points</span>
             </div>
             <p className="text-2xl font-bold">
-              {challenges.reduce((sum, c) => sum + c.score, 0)}
+              {Array.isArray(challenges) ? challenges.reduce((sum, c) => sum + c.score, 0) : 0}
             </p>
           </CardContent>
         </Card>
@@ -344,6 +376,14 @@ export default function TeacherChallenges() {
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDeleteChallenge(challenge)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             ))}
@@ -382,6 +422,18 @@ export default function TeacherChallenges() {
         <CreateChallengeModal
           onSave={handleCreateChallenge}
           onClose={() => setIsCreateModalOpen(false)}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && challengeToDelete && (
+        <DeleteConfirmationModal
+          challenge={challengeToDelete}
+          onConfirm={confirmDeleteChallenge}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setChallengeToDelete(null);
+          }}
         />
       )}
     </div>
@@ -606,6 +658,51 @@ function EditChallengeModal({ challenge, onSave, onClose }) {
             </Button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function DeleteConfirmationModal({ challenge, onConfirm, onClose }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md">
+        <h2 className="text-lg sm:text-xl font-bold mb-4 text-red-600">Delete Challenge</h2>
+        <p className="text-gray-700 mb-2">
+          Are you sure you want to delete this challenge?
+        </p>
+        <div className="bg-gray-50 p-3 rounded-lg mb-4">
+          <p className="font-medium text-sm">{challenge.statement}</p>
+          {challenge.help && (
+            <p className="text-xs text-gray-600 mt-1 italic">{challenge.help}</p>
+          )}
+          <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+            <span>Level {challenge.level}</span>
+            <span>{challenge.score} points</span>
+            <span>{challenge.solves} solves</span>
+          </div>
+        </div>
+        <p className="text-sm text-red-600 mb-4">
+          ⚠️ This action cannot be undone. All student progress on this challenge will be lost.
+        </p>
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+          <Button 
+            onClick={onConfirm} 
+            variant="destructive" 
+            className="flex-1"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete Challenge
+          </Button>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onClose} 
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -2,13 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import ChatBubble from './ChatBubble';
-import ChatInterface from './ChatInterface';
+import RightPanelChat from './RightPanelChat';
+import { usePageContext } from '@/hooks/usePageContext';
 
-export default function Chatbot() {
+export default function Chatbot({ context = null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+  
+  // Get context from current page if not provided as prop
+  const pageContext = usePageContext();
+  const effectiveContext = context || pageContext;
 
   // Load conversation history from localStorage on mount
   useEffect(() => {
@@ -52,6 +57,7 @@ export default function Chatbot() {
         body: JSON.stringify({
           message: content,
           conversationHistory: messages,
+          context: effectiveContext, // Include contextual information
         }),
       });
 
@@ -92,6 +98,11 @@ export default function Chatbot() {
     setIsOpen(prev => !prev);
   };
 
+  const handleClearChat = () => {
+    setMessages([]);
+    localStorage.removeItem('chatbot-messages');
+  };
+
   return (
     <>
       <ChatBubble
@@ -99,12 +110,14 @@ export default function Chatbot() {
         onToggle={handleToggleChat}
         hasUnreadMessages={hasUnreadMessages}
       />
-      <ChatInterface
+      <RightPanelChat
         isOpen={isOpen}
         messages={messages}
         onSendMessage={handleSendMessage}
         isLoading={isLoading}
         onToggle={handleToggleChat}
+        onClearChat={handleClearChat}
+        context={effectiveContext}
       />
     </>
   );

@@ -2,11 +2,11 @@
 // Copy this to your .env.local file and replace with your actual values
 
 export const CHAT_CONFIG = {
-  // OpenAI Configuration
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
-  OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
-  OPENAI_MAX_TOKENS: parseInt(process.env.OPENAI_MAX_TOKENS) || 1000,
-  OPENAI_TEMPERATURE: parseFloat(process.env.OPENAI_TEMPERATURE) || 0.7,
+  // Anthropic Configuration
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
+  ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
+  ANTHROPIC_MAX_TOKENS: parseInt(process.env.ANTHROPIC_MAX_TOKENS) || 1000,
+  ANTHROPIC_TEMPERATURE: parseFloat(process.env.ANTHROPIC_TEMPERATURE) || 0.7,
 
   // System Prompt - You can customize this!
   SYSTEM_PROMPT: process.env.CHAT_SYSTEM_PROMPT || `

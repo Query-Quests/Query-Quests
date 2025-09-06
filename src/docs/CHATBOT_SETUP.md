@@ -1,10 +1,10 @@
 # Query Quest Chatbot Setup Guide
 
 ## 🎯 Overview
-Your chatbot has been successfully integrated with OpenAI GPT-4! This guide will help you configure and customize the AI assistant.
+Your chatbot has been successfully integrated with Anthropic Claude! This guide will help you configure and customize the AI assistant.
 
 ## 📋 Prerequisites
-- OpenAI API account with API key
+- Anthropic API account with API key
 - Next.js application running
 
 ## 🚀 Quick Setup
@@ -22,18 +22,18 @@ Then edit `.env.local` with your actual values:
 # Database
 DATABASE_URL="file:./dev.db"
 
-# OpenAI Configuration
-OPENAI_API_KEY=your-api-key-here
-OPENAI_MODEL=gpt-4-turbo-preview
-OPENAI_MAX_TOKENS=1000
-OPENAI_TEMPERATURE=0.7
+# Anthropic Configuration
+ANTHROPIC_API_KEY=your-api-key-here
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+ANTHROPIC_MAX_TOKENS=1000
+ANTHROPIC_TEMPERATURE=0.7
 
 # Chat Configuration
 CHAT_SYSTEM_PROMPT=Your custom system prompt here...
 ```
 
-### 2. Get Your OpenAI API Key
-1. Go to [OpenAI Platform](https://platform.openai.com)
+### 2. Get Your Anthropic API Key
+1. Go to [Anthropic Console](https://console.anthropic.com)
 2. Sign up or log in
 3. Navigate to API Keys section
 4. Create a new API key
@@ -62,10 +62,10 @@ Always maintain a supportive and educational tone.
 
 ## ⚙️ Configuration Options
 
-### OpenAI Settings
-- **OPENAI_MODEL**: Choose your model (`gpt-4-turbo-preview`, `gpt-4`, `gpt-3.5-turbo`)
-- **OPENAI_MAX_TOKENS**: Maximum response length (100-4000 tokens)
-- **OPENAI_TEMPERATURE**: Creativity level (0.0-1.0, lower = more focused)
+### Anthropic Settings
+- **ANTHROPIC_MODEL**: Choose your model (`claude-3-5-sonnet-20241022`, `claude-3-5-haiku-20241022`, `claude-3-opus-20240229`)
+- **ANTHROPIC_MAX_TOKENS**: Maximum response length (100-4000 tokens)
+- **ANTHROPIC_TEMPERATURE**: Creativity level (0.0-1.0, lower = more focused)
 
 ### Chat Behavior
 - **MAX_HISTORY_LENGTH**: Number of previous messages to include (default: 10)
@@ -89,7 +89,7 @@ The chatbot automatically includes:
 
 ### 3. Conversation Management
 - **History Tracking**: Maintains conversation context
-- **Token Management**: Prevents exceeding OpenAI limits
+- **Token Management**: Prevents exceeding Anthropic limits
 - **Error Handling**: Graceful fallbacks for API issues
 
 ## 🔧 Advanced Configuration
@@ -97,20 +97,20 @@ The chatbot automatically includes:
 ### Testing Different Models
 Update your `.env.local`:
 ```env
-OPENAI_MODEL=gpt-4  # For more advanced responses
-# OPENAI_MODEL=gpt-3.5-turbo  # For faster, cheaper responses
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022  # For more advanced responses
+# ANTHROPIC_MODEL=claude-3-5-haiku-20241022  # For faster, cheaper responses
 ```
 
 ### Adjusting Response Length
 ```env
-OPENAI_MAX_TOKENS=1500  # For longer, more detailed responses
-OPENAI_MAX_TOKENS=500   # For shorter, concise responses
+ANTHROPIC_MAX_TOKENS=1500  # For longer, more detailed responses
+ANTHROPIC_MAX_TOKENS=500   # For shorter, concise responses
 ```
 
 ### Fine-tuning Temperature
 ```env
-OPENAI_TEMPERATURE=0.3  # More focused, consistent responses
-OPENAI_TEMPERATURE=0.9  # More creative, varied responses
+ANTHROPIC_TEMPERATURE=0.3  # More focused, consistent responses
+ANTHROPIC_TEMPERATURE=0.9  # More creative, varied responses
 ```
 
 ## 🧪 Testing & Development
@@ -130,7 +130,7 @@ npm run dev
    - "Show me a SQL query example"
 
 ### 3. Monitor API Usage
-Check your OpenAI dashboard for:
+Check your Anthropic dashboard for:
 - Token usage
 - API costs
 - Rate limits
@@ -138,8 +138,8 @@ Check your OpenAI dashboard for:
 
 ## 📊 Monitoring & Analytics
 
-### OpenAI Usage Tracking
-- Monitor your API usage in the OpenAI dashboard
+### Anthropic Usage Tracking
+- Monitor your API usage in the Anthropic console
 - Set up billing alerts for cost management
 - Track token consumption patterns
 
@@ -160,17 +160,17 @@ The system includes built-in error handling for:
 - Restart your development server
 
 **"Rate limit exceeded"**
-- OpenAI has usage limits based on your plan
-- Consider upgrading your OpenAI plan
+- Anthropic has usage limits based on your plan
+- Consider upgrading your Anthropic plan
 - Implement caching for repeated questions
 
 **"Empty responses"**
 - Check your system prompt configuration
-- Verify OpenAI API key permissions
-- Check the OpenAI service status
+- Verify Anthropic API key permissions
+- Check the Anthropic service status
 
 ### Getting Help
-- Check OpenAI documentation for API issues
+- Check Anthropic documentation for API issues
 - Review the browser console for client-side errors
 - Check server logs for API-related errors
 
@@ -224,10 +224,10 @@ After making changes to your configuration:
 
 If you encounter issues:
 1. Check the browser console for errors
-2. Verify your OpenAI API key is valid
+2. Verify your Anthropic API key is valid
 3. Review server logs for API errors
 4. Test with simple questions first
-5. Check OpenAI's status page for service issues
+5. Check Anthropic's status page for service issues
 
 ---
 
