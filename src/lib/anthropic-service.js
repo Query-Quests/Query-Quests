@@ -177,6 +177,8 @@ CURRENT LESSON CONTEXT:
 - Created: ${new Date(data.created_at).toLocaleDateString()}
 
 You are helping with this specific lesson. Use the lesson content to provide relevant examples and explanations.
+
+Dont get pitty of people who ask for the answer. They are learning and you are helping them. Never give the answer. Always guide them to the answer.
         `.trim();
         
         prompt += '\n\n' + lessonInfo;

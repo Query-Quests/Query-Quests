@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Header from "@/components/header";
+import XTerminal from "@/components/XTerminal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -191,274 +192,277 @@ export default function ChallengeDetail() {
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <div className="container mx-auto px-4 py-6">
-          {/* Back Button */}
-          <div className="mb-4">
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/challenges">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Challenges
-              </Link>
-            </Button>
-          </div>
+      <div className="h-screen flex flex-col bg-gray-50">
+        {/* Back Button */}
+        <div className="px-4 py-2 border-b bg-white">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/challenges">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Challenges
+            </Link>
+          </Button>
+        </div>
 
-          {/* Challenge Header */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <div className="lg:col-span-2">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <LevelBadge level={challenge.level} />
-                      {isCompleted && (
-                        <Badge className="bg-green-100 text-green-800">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Completed
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <Star className="h-4 w-4" />
-                      <span className="font-medium">{challenge.score} pts</span>
-                    </div>
-                  </div>
-                  <CardTitle className="text-xl font-bold text-gray-900">
-                    SQL Challenge #{challenge.id}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">Challenge Statement</h3>
-                      <p className="text-gray-700 leading-relaxed">{challenge.statement}</p>
-                    </div>
-                    
-                    {challenge.help && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowHint(!showHint)}
-                          className="mb-2 p-0 h-auto text-blue-700 hover:text-blue-800"
-                        >
-                          <Lightbulb className="h-4 w-4 mr-2" />
-                          {showHint ? "Hide Hint" : "Show Hint"}
-                        </Button>
-                        {showHint && (
-                          <div className="text-sm text-blue-800 mt-2">
-                            {challenge.help}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between text-sm text-gray-500 pt-4 border-t">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1">
-                          <Users className="h-4 w-4" />
-                          <span>{challenge.solves} solves</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          <span>{formatDate(challenge.created_at)}</span>
-                        </div>
-                      </div>
-                      {challenge.institution && (
-                        <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                          {challenge.institution.name}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Stats Sidebar */}
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Trophy className="h-5 w-5" />
-                    Challenge Stats
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Base Score</span>
-                    <span className="font-medium">{challenge.score_base}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Minimum Score</span>
-                    <span className="font-medium">{challenge.score_min}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Your Attempts</span>
-                    <span className="font-medium">{attempts}</span>
-                  </div>
-                  {isCompleted && (
-                    <div className="flex justify-between items-center pt-2 border-t">
-                      <span className="text-sm text-green-600 font-medium">Your Score</span>
-                      <span className="font-bold text-green-600">{score}</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Solution Button */}
-              <Card>
-                <CardContent className="pt-6">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowSolution(!showSolution)}
-                    className="w-full mb-3"
-                    disabled={!isCompleted}
-                  >
-                    {showSolution ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
-                    {showSolution ? "Hide Solution" : "View Solution"}
-                  </Button>
-                  {!isCompleted && (
-                    <p className="text-xs text-gray-500 text-center">
-                      Complete the challenge to view the solution
-                    </p>
-                  )}
-                  {showSolution && isCompleted && (
-                    <div className="bg-gray-50 border rounded p-3 mt-3">
-                      <code className="text-sm text-gray-800 whitespace-pre-wrap">
-                        {challenge.solution}
-                      </code>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          {/* SQL Editor */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Code className="h-5 w-5" />
-                SQL Query Editor
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <Textarea
-                  value={sqlQuery}
-                  onChange={(e) => setSqlQuery(e.target.value)}
-                  placeholder="Write your SQL query here..."
-                  className="font-mono text-sm min-h-[200px] bg-gray-50"
-                  disabled={queryLoading}
-                />
-                
-                <div className="flex gap-2">
+        {/* Main Content - 2 Column Layout */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left Column - SQL Console */}
+          <div className="w-1/2 bg-black flex flex-col">
+            {/* Console Header */}
+            <div className="px-4 py-3 bg-gray-900 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-green-400 flex items-center gap-2">
+                  <Code className="h-5 w-5" />
+                  SQL Console
+                </h2>
+                <div className="flex items-center gap-2">
                   <Button 
                     onClick={executeQuery} 
                     disabled={queryLoading || !sqlQuery.trim()}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     {queryLoading ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
                       <Play className="h-4 w-4 mr-2" />
                     )}
-                    {queryLoading ? "Executing..." : "Execute Query"}
+                    {queryLoading ? "Executing..." : "Execute"}
                   </Button>
                   
                   <Button 
                     variant="outline" 
+                    size="sm"
                     onClick={resetQuery}
                     disabled={queryLoading}
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
                   >
                     <RotateCcw className="h-4 w-4 mr-2" />
                     Reset
                   </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Query Results */}
-          {(queryResult || queryError) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  Query Results
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {queryError && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-red-800 mb-2">
-                      <XCircle className="h-5 w-5" />
-                      <span className="font-medium">Query Error</span>
+            {/* Database Terminal */}
+            <div className="flex-1">
+              <XTerminal 
+                mode="database"
+                challengeId={params.id}
+                onQueryResult={(result) => {
+                  setQueryResult(result);
+                  if (result.success && result.type === 'challenge_completed') {
+                    setIsCompleted(true);
+                    setScore(result.score);
+                  }
+                }}
+                onQueryError={(error) => {
+                  setQueryError(error.error);
+                }}
+              />
+            </div>
+
+            {/* Query Results */}
+            {(queryResult || queryError) && (
+              <div className="bg-gray-900 border-t border-gray-700">
+                <div className="px-4 py-2 border-b border-gray-700">
+                  <h3 className="font-medium text-green-400 flex items-center gap-2">
+                    <Target className="h-4 w-4" />
+                    Results
+                  </h3>
+                </div>
+                <div className="p-4 max-h-64 overflow-y-auto">
+                  {queryError && (
+                    <div className="bg-red-900 border border-red-700 rounded-lg p-3">
+                      <div className="flex items-center gap-2 text-red-300 mb-2">
+                        <XCircle className="h-4 w-4" />
+                        <span className="font-medium text-sm">Query Error</span>
+                      </div>
+                      <p className="text-red-200 text-sm">{queryError}</p>
                     </div>
-                    <p className="text-red-700 text-sm">{queryError}</p>
-                  </div>
-                )}
-                
-                {queryResult && (
-                  <div className={`border rounded-lg p-4 ${
-                    queryResult.success 
-                      ? 'bg-green-50 border-green-200' 
-                      : 'bg-yellow-50 border-yellow-200'
-                  }`}>
-                    <div className="flex items-center gap-2 mb-3">
-                      {queryResult.success ? (
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                      ) : (
-                        <XCircle className="h-5 w-5 text-yellow-600" />
-                      )}
-                      <span className={`font-medium ${
-                        queryResult.success ? 'text-green-800' : 'text-yellow-800'
-                      }`}>
-                        {queryResult.success ? 'Success!' : 'Try Again'}
-                      </span>
-                    </div>
-                    
-                    <p className={`text-sm mb-4 ${
-                      queryResult.success ? 'text-green-700' : 'text-yellow-700'
+                  )}
+                  
+                  {queryResult && (
+                    <div className={`border rounded-lg p-3 ${
+                      queryResult.success 
+                        ? 'bg-green-900 border-green-700' 
+                        : 'bg-yellow-900 border-yellow-700'
                     }`}>
-                      {queryResult.message}
-                    </p>
-                    
-                    {queryResult.data && queryResult.data.length > 0 && (
-                      <div className="bg-white border rounded overflow-hidden">
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                {Object.keys(queryResult.data[0]).map((key) => (
-                                  <th key={key} className="px-4 py-2 text-left font-medium text-gray-700">
-                                    {key}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {queryResult.data.map((row, index) => (
-                                <tr key={index} className="border-t">
-                                  {Object.values(row).map((value, cellIndex) => (
-                                    <td key={cellIndex} className="px-4 py-2 text-gray-600">
-                                      {value}
-                                    </td>
+                      <div className="flex items-center gap-2 mb-2">
+                        {queryResult.success ? (
+                          <CheckCircle className="h-4 w-4 text-green-400" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-yellow-400" />
+                        )}
+                        <span className={`font-medium text-sm ${
+                          queryResult.success ? 'text-green-300' : 'text-yellow-300'
+                        }`}>
+                          {queryResult.success ? 'Success!' : 'Try Again'}
+                        </span>
+                      </div>
+                      
+                      <p className={`text-sm mb-3 ${
+                        queryResult.success ? 'text-green-200' : 'text-yellow-200'
+                      }`}>
+                        {queryResult.message}
+                      </p>
+                      
+                      {queryResult.data && queryResult.data.length > 0 && (
+                        <div className="bg-gray-800 border border-gray-600 rounded overflow-hidden">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead className="bg-gray-700">
+                                <tr>
+                                  {Object.keys(queryResult.data[0]).map((key) => (
+                                    <th key={key} className="px-2 py-1 text-left font-medium text-gray-300">
+                                      {key}
+                                    </th>
                                   ))}
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody>
+                                {queryResult.data.map((row, index) => (
+                                  <tr key={index} className="border-t border-gray-600">
+                                    {Object.values(row).map((value, cellIndex) => (
+                                      <td key={cellIndex} className="px-2 py-1 text-gray-400">
+                                        {value}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column - Challenge Details */}
+          <div className="w-1/2 bg-white flex flex-col overflow-y-auto">
+            {/* Challenge Header */}
+            <div className="p-4 border-b bg-gray-50">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <LevelBadge level={challenge.level} />
+                  {isCompleted && (
+                    <Badge className="bg-green-100 text-green-800">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Completed
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Star className="h-4 w-4" />
+                  <span className="font-medium">{challenge.score} pts</span>
+                </div>
+              </div>
+              <h1 className="text-xl font-bold text-gray-900 mb-2">
+                SQL Challenge #{challenge.id}
+              </h1>
+              <div className="flex items-center gap-4 text-sm text-gray-500">
+                <div className="flex items-center gap-1">
+                  <Users className="h-4 w-4" />
+                  <span>{challenge.solves} solves</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Clock className="h-4 w-4" />
+                  <span>{formatDate(challenge.created_at)}</span>
+                </div>
+                {challenge.institution && (
+                  <span className="text-xs bg-gray-200 px-2 py-1 rounded">
+                    {challenge.institution.name}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Challenge Content */}
+            <div className="flex-1 p-4 space-y-6">
+              {/* Challenge Statement */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Challenge Statement</h3>
+                <p className="text-gray-700 leading-relaxed">{challenge.statement}</p>
+              </div>
+              
+              {/* Hint Section */}
+              {challenge.help && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowHint(!showHint)}
+                    className="mb-2 p-0 h-auto text-blue-700 hover:text-blue-800"
+                  >
+                    <Lightbulb className="h-4 w-4 mr-2" />
+                    {showHint ? "Hide Hint" : "Show Hint"}
+                  </Button>
+                  {showHint && (
+                    <div className="text-sm text-blue-800">
+                      {challenge.help}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Challenge Stats */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Trophy className="h-4 w-4" />
+                  Challenge Stats
+                </h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Base Score</span>
+                    <span className="font-medium">{challenge.score_base}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Minimum Score</span>
+                    <span className="font-medium">{challenge.score_min}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Your Attempts</span>
+                    <span className="font-medium">{attempts}</span>
+                  </div>
+                  {isCompleted && (
+                    <div className="flex justify-between col-span-2 pt-2 border-t">
+                      <span className="text-green-600 font-medium">Your Score</span>
+                      <span className="font-bold text-green-600">{score}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Solution Section */}
+              <div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSolution(!showSolution)}
+                  className="w-full mb-3"
+                  disabled={!isCompleted}
+                >
+                  {showSolution ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+                  {showSolution ? "Hide Solution" : "View Solution"}
+                </Button>
+                {!isCompleted && (
+                  <p className="text-xs text-gray-500 text-center">
+                    Complete the challenge to view the solution
+                  </p>
+                )}
+                {showSolution && isCompleted && (
+                  <div className="bg-gray-50 border rounded p-3">
+                    <code className="text-sm text-gray-800 whitespace-pre-wrap">
+                      {challenge.solution}
+                    </code>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </>

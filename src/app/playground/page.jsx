@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Header from "@/components/header";
-import PlaygroundTerminal from "@/components/PlaygroundTerminal";
+import XTerminal from "@/components/XTerminal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -144,7 +144,10 @@ export default function Playground() {
                             )}
                         </div>
                         <div className="flex-1">
-                            <PlaygroundTerminal />
+                            <XTerminal 
+                                mode="playground"
+                                className="w-full h-full"
+                            />
                         </div>
                     </div>
 
