@@ -9,7 +9,7 @@ export async function GET(request) {
     
     let whereClause = {};
     if (institutionId) {
-      whereClause.institution_id = parseInt(institutionId);
+      whereClause.institution_id = institutionId;
     }
     if (publishedOnly) {
       whereClause.isPublished = true;
@@ -87,7 +87,7 @@ export async function POST(request) {
         order: order || 0,
         isPublished: isPublished || false,
         institution_id,
-        creator_id: parseInt(creator_id),
+        creator_id: creator_id,
       },
       include: {
         institution: true,

@@ -145,7 +145,7 @@ export default function Playground() {
                         </div>
                         <div className="flex-1">
                             <XTerminal 
-                                mode="playground"
+                                mode="shell"
                                 className="w-full h-full"
                             />
                         </div>

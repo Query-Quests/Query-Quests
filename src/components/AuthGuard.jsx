@@ -10,7 +10,7 @@ export default function AuthGuard({ children }) {
   const pathname = usePathname();
 
   // Public routes that don't require authentication
-  const publicRoutes = useMemo(() => ["/", "/terms", "/privacy", "/verify-email"], []);
+  const publicRoutes = useMemo(() => ["/", "/auth", "/terms", "/privacy", "/verify-email"], []);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -34,7 +34,7 @@ export default function AuthGuard({ children }) {
         // If not on public route, redirect to login
         const isPublicRoute = publicRoutes.includes(pathname);
         if (!isPublicRoute) {
-          router.push("/");
+          router.push("/auth");
         }
         setIsAuthenticated(false);
       }
@@ -50,7 +50,7 @@ export default function AuthGuard({ children }) {
       const isPublicRoute = publicRoutes.includes(pathname);
       
       if (!isAuthenticated && !isPublicRoute) {
-        router.push("/");
+        router.push("/auth");
       }
     }
   }, [isAuthenticated, isLoading, pathname, router, publicRoutes]);

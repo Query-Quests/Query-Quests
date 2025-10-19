@@ -5,10 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Header from "@/components/header";
 import XTerminal from "@/components/XTerminal";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import LevelBadge from "@/components/LevelBadge";
 import { 
   ArrowLeft, 
@@ -21,7 +18,6 @@ import {
   Code,
   Trophy,
   Target,
-  HelpCircle,
   Eye,
   EyeOff,
   Clock,
@@ -246,7 +242,7 @@ export default function ChallengeDetail() {
             {/* Database Terminal */}
             <div className="flex-1">
               <XTerminal 
-                mode="database"
+                mode="shell"
                 challengeId={params.id}
                 onQueryResult={(result) => {
                   setQueryResult(result);

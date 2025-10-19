@@ -114,8 +114,8 @@ export default function ShellTerminal() {
                 <div>
                   <h3 className="text-sm font-medium text-amber-800">Auto-Connect MySQL Terminal</h3>
                   <p className="text-sm text-amber-700 mt-1">
-                    This terminal automatically connects you to the MySQL database. You'll be logged in as root user to the 'queryquest' database.
-                    Type SQL commands directly or '\q' to exit to the container shell.
+                    This terminal automatically connects you to the MySQL database. You&apos;ll be logged in as root user to the &apos;queryquest&apos; database.
+                    Type SQL commands directly or &apos;\q&apos; to exit to the container shell.
                   </p>
                 </div>
               </div>

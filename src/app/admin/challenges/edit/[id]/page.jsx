@@ -36,9 +36,7 @@ export default function EditChallenge() {
     help: "",
     solution: "",
     level: "1",
-    score: "100",
-    score_base: "100",
-    score_min: "10",
+    initial_score: "100",
     institution_id: "",
   });
 
@@ -59,9 +57,7 @@ export default function EditChallenge() {
           help: challengeData.help || "",
           solution: challengeData.solution || "",
           level: challengeData.level?.toString() || "1",
-          score: challengeData.score?.toString() || "100",
-          score_base: challengeData.score_base?.toString() || "100",
-          score_min: challengeData.score_min?.toString() || "10",
+          initial_score: challengeData.initial_score?.toString() || "100",
           institution_id: challengeData.institution_id?.toString() || "",
         });
       } else {
@@ -103,13 +99,12 @@ export default function EditChallenge() {
       const challengeData = {
         ...formData,
         level: parseInt(formData.level),
-        score: parseInt(formData.score),
-        score_base: parseInt(formData.score_base),
-        score_min: parseInt(formData.score_min),
+        initial_score: parseInt(formData.initial_score),
         // Map "none" or empty string to null for the DB
         institution_id: !formData.institution_id || formData.institution_id === "none"
           ? null
-          : parseInt(formData.institution_id),
+          : formData.institution_id,
+        updater_id: "545c289e-c1f9-4798-9090-e74e65f116f4", // Admin user ID from create-admin script
       };
 
       const response = await fetch(`/api/challenges/${challengeId}`, {
@@ -286,63 +281,23 @@ export default function EditChallenge() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 sm:space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="score" className="text-sm font-medium">
-                    Points *
-                  </Label>
-                  <Input
-                    id="score"
-                    type="number"
-                    placeholder="100"
-                    value={formData.score}
-                    onChange={(e) => setFormData({ ...formData, score: e.target.value })}
-                    min="1"
-                    required
-                    className="hover:border-blue-300 focus:border-blue-400 transition-colors duration-200"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Maximum points for correct solution
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="score_base" className="text-sm font-medium">
-                    Base Score *
-                  </Label>
-                  <Input
-                    id="score_base"
-                    type="number"
-                    placeholder="100"
-                    value={formData.score_base}
-                    onChange={(e) => setFormData({ ...formData, score_base: e.target.value })}
-                    min="1"
-                    required
-                    className="hover:border-blue-300 focus:border-blue-400 transition-colors duration-200"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Base score for partial solutions
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="score_min" className="text-sm font-medium">
-                    Minimum Score *
-                  </Label>
-                  <Input
-                    id="score_min"
-                    type="number"
-                    placeholder="10"
-                    value={formData.score_min}
-                    onChange={(e) => setFormData({ ...formData, score_min: e.target.value })}
-                    min="1"
-                    required
-                    className="hover:border-blue-300 focus:border-blue-400 transition-colors duration-200"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Minimum points for any attempt
-                  </p>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="initial_score" className="text-sm font-medium">
+                  Initial Score *
+                </Label>
+                <Input
+                  id="initial_score"
+                  type="number"
+                  placeholder="100"
+                  value={formData.initial_score}
+                  onChange={(e) => setFormData({ ...formData, initial_score: e.target.value })}
+                  min="1"
+                  required
+                  className="hover:border-blue-300 focus:border-blue-400 transition-colors duration-200"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Starting points for this challenge. Score decreases as more people solve it.
+                </p>
               </div>
             </CardContent>
           </Card>

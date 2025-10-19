@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const { randomUUID } = require('crypto');
 
 const prisma = new PrismaClient();
 
@@ -48,11 +49,12 @@ async function main() {
 
   const createdInstitutions = [];
   for (let i = 0; i < institutions.length; i++) {
+    const institutionId = randomUUID();
     const institution = await prisma.institution.upsert({
-      where: { id: i + 1 },
+      where: { id: institutionId },
       update: {},
       create: {
-        id: i + 1,
+        id: institutionId,
         ...institutions[i]
       },
     });
@@ -71,8 +73,8 @@ async function main() {
     'Dr. Laura Brown', 'Prof. Miguel Davis'
   ];
 
-  let userId = 1;
   const hashedPassword = await bcrypt.hash('password123', 10);
+  const createdUsers = [];
 
   for (let institutionIndex = 0; institutionIndex < createdInstitutions.length; institutionIndex++) {
     const institution = createdInstitutions[institutionIndex];
@@ -82,8 +84,9 @@ async function main() {
       const nameIndex = studentIndex + (institutionIndex * 20);
       const name = userNames[nameIndex % 20]; // Cycle through first 20 names for students
       const email = `student${studentIndex + 1}${institution.studentEmailSuffix}`;
+      const userId = randomUUID();
       
-      await prisma.user.upsert({
+      const user = await prisma.user.upsert({
         where: { id: userId },
         update: {},
         create: {
@@ -95,23 +98,24 @@ async function main() {
           isTeacher: false,
           isAdmin: false,
           solvedChallenges: Math.floor(Math.random() * 15),
-          points: Math.floor(Math.random() * 500),
+          totalScore: 0, // Will be calculated when challenges are solved
           last_login: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Random login within last 7 days
           institution_id: institution.id
         },
       });
-      userId++;
+      createdUsers.push(user);
     }
 
     // Create 1 teacher for this institution
     const teacherName = userNames[20 + institutionIndex]; // Use names 21-26 for teachers
     const teacherEmail = `teacher${institutionIndex + 1}${institution.teacherEmailSuffix}`;
+    const teacherId = randomUUID();
     
-    await prisma.user.upsert({
-      where: { id: userId },
+    const teacher = await prisma.user.upsert({
+      where: { id: teacherId },
       update: {},
       create: {
-        id: userId,
+        id: teacherId,
         name: teacherName,
         email: teacherEmail,
         password: hashedPassword,
@@ -119,20 +123,21 @@ async function main() {
         isTeacher: true,
         isAdmin: false,
         solvedChallenges: Math.floor(Math.random() * 25),
-        points: Math.floor(Math.random() * 800),
+        totalScore: 0, // Will be calculated when challenges are solved
         last_login: new Date(Date.now() - Math.random() * 3 * 24 * 60 * 60 * 1000), // Random login within last 3 days
         institution_id: institution.id
       },
     });
-    userId++;
+    createdUsers.push(teacher);
   }
 
   // Create admin user
-  await prisma.user.upsert({
-    where: { id: userId },
+  const adminId = randomUUID();
+  const admin = await prisma.user.upsert({
+    where: { id: adminId },
     update: {},
     create: {
-      id: userId,
+      id: adminId,
       name: 'Admin User',
       email: 'admin@queryquest.com',
       password: hashedPassword,
@@ -140,11 +145,12 @@ async function main() {
       isTeacher: false,
       isAdmin: true,
       solvedChallenges: 50,
-      points: 1500,
+      totalScore: 0, // Will be calculated when challenges are solved
       last_login: new Date(),
       institution_id: null
     },
   });
+  createdUsers.push(admin);
 
   console.log('✅ Users created (120 students + 6 teachers + 1 admin)');
 
@@ -155,80 +161,72 @@ async function main() {
       help: "Use the WHERE clause to filter records based on salary condition.",
       solution: "SELECT * FROM employees WHERE salary > 50000;",
       level: 1,
-      score: 100,
-      score_base: 100,
-      score_min: 50,
-      institution_id: 1
+      initial_score: 100,
+      current_score: 100,
+      institution_id: createdInstitutions[0].id
     },
     {
       statement: "Find the average salary for each department in the 'employees' table. Group the results by department.",
       help: "Use GROUP BY to group results by department and AVG() function for average calculation.",
       solution: "SELECT department, AVG(salary) as avg_salary FROM employees GROUP BY department;",
       level: 2,
-      score: 150,
-      score_base: 150,
-      score_min: 75,
-      institution_id: 1
+      initial_score: 150,
+      current_score: 150,
+      institution_id: createdInstitutions[0].id
     },
     {
       statement: "Write a query to find employees who work in departments with more than 5 employees. Use a subquery.",
       help: "First find departments with >5 employees, then select employees from those departments.",
       solution: "SELECT * FROM employees WHERE department IN (SELECT department FROM employees GROUP BY department HAVING COUNT(*) > 5);",
       level: 3,
-      score: 200,
-      score_base: 200,
-      score_min: 100,
-      institution_id: 1
+      initial_score: 200,
+      current_score: 200,
+      institution_id: createdInstitutions[0].id
     },
     {
       statement: "Create a query that shows the top 3 highest-paid employees from each department using window functions.",
       help: "Use ROW_NUMBER() window function partitioned by department and ordered by salary descending.",
       solution: "SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) as rn FROM employees) ranked WHERE rn <= 3;",
       level: 4,
-      score: 250,
-      score_base: 250,
-      score_min: 125,
-      institution_id: 3
+      initial_score: 250,
+      current_score: 250,
+      institution_id: createdInstitutions[2].id
     },
     {
       statement: "Write a complex query to find employees who have the same salary as at least one other employee in a different department.",
       help: "Use self-join to compare employees across different departments.",
       solution: "SELECT DISTINCT e1.* FROM employees e1 JOIN employees e2 ON e1.salary = e2.salary WHERE e1.department != e2.department;",
       level: 5,
-      score: 300,
-      score_base: 300,
-      score_min: 150,
-      institution_id: 3
+      initial_score: 300,
+      current_score: 300,
+      institution_id: createdInstitutions[2].id
     },
     {
       statement: "Find all customers who have placed orders in the last 30 days and calculate their total order value.",
       help: "Use DATE functions to filter recent orders and SUM() for total calculation.",
       solution: "SELECT customer_id, SUM(order_value) as total_value FROM orders WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) GROUP BY customer_id;",
       level: 2,
-      score: 150,
-      score_base: 150,
-      score_min: 75,
-      institution_id: 2
+      initial_score: 150,
+      current_score: 150,
+      institution_id: createdInstitutions[1].id
     },
     {
       statement: "Create a query to identify products that have never been ordered by any customer.",
       help: "Use LEFT JOIN and check for NULL values in the orders table.",
       solution: "SELECT p.* FROM products p LEFT JOIN order_items oi ON p.product_id = oi.product_id WHERE oi.product_id IS NULL;",
       level: 3,
-      score: 200,
-      score_base: 200,
-      score_min: 100,
-      institution_id: 4
+      initial_score: 200,
+      current_score: 200,
+      institution_id: createdInstitutions[3].id
     },
     {
       statement: "Write a query to find the month with the highest total sales for each year in the last 5 years.",
       help: "Use window functions with PARTITION BY year and ORDER BY total_sales DESC.",
       solution: "SELECT * FROM (SELECT YEAR(order_date) as year, MONTH(order_date) as month, SUM(order_value) as total_sales, ROW_NUMBER() OVER (PARTITION BY YEAR(order_date) ORDER BY SUM(order_value) DESC) as rn FROM orders WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 5 YEAR) GROUP BY YEAR(order_date), MONTH(order_date)) ranked WHERE rn = 1;",
       level: 5,
-      score: 300,
-      score_base: 300,
-      score_min: 150,
-      institution_id: 5
+      initial_score: 300,
+      current_score: 300,
+      institution_id: createdInstitutions[4].id
     }
   ];
 
@@ -300,8 +298,8 @@ Remember: SQL is not case-sensitive, but it's a good practice to write keywords 
       description: "Learn the fundamentals of SQL and basic query syntax",
       order: 1,
       isPublished: true,
-      institution_id: 1,
-      creator_id: 21 // First teacher
+      institution_id: createdInstitutions[0].id,
+      creator_id: createdUsers.find(u => u.isTeacher && u.institution_id === createdInstitutions[0].id).id
     },
     {
       title: "Advanced SQL Joins",
@@ -382,8 +380,8 @@ LEFT JOIN employees e2 ON e1.manager_id = e2.employee_id;
       description: "Master different types of SQL joins for complex data relationships",
       order: 2,
       isPublished: true,
-      institution_id: 2,
-      creator_id: 42 // Second teacher
+      institution_id: createdInstitutions[1].id,
+      creator_id: createdUsers.find(u => u.isTeacher && u.institution_id === createdInstitutions[1].id).id
     },
     {
       title: "SQL Aggregation Functions",
@@ -488,8 +486,8 @@ GROUP BY department;
       description: "Learn to use aggregation functions for data analysis and reporting",
       order: 3,
       isPublished: true,
-      institution_id: 3,
-      creator_id: 63 // Third teacher
+      institution_id: createdInstitutions[2].id,
+      creator_id: createdUsers.find(u => u.isTeacher && u.institution_id === createdInstitutions[2].id).id
     }
   ];
 
@@ -517,4 +515,4 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
-  }); 
+  });

@@ -154,7 +154,7 @@ export default function RightPanelChat({
                 <div className="space-y-2">
                   <h3 className="text-lg font-semibold">Welcome to Query Quest Assistant</h3>
                   <p className="text-sm text-muted-foreground">
-                    I'm here to help you with SQL queries, database concepts, and your learning journey. Ask me anything!
+                    I&apos;m here to help you with SQL queries, database concepts, and your learning journey. Ask me anything!
                   </p>
                 </div>
                 <PromptSuggestions suggestions={suggestions} append={(message) => onSendMessage(message.content)} />

@@ -6,7 +6,7 @@ export async function GET(request, { params }) {
     const { id } = await params;
 
     const challenge = await prisma.challenge.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: id },
       include: {
         institution: true,
       },
@@ -38,14 +38,13 @@ export async function PUT(request, { params }) {
       help, 
       solution, 
       level, 
-      score, 
-      score_base, 
-      score_min,
+      institution_id,
+      initial_score,
       updater_id 
     } = data;
 
     // Validate required fields
-    if (!statement || !solution || !level || !score || !score_base || !score_min) {
+    if (!statement || !solution || !level || !initial_score) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -54,7 +53,7 @@ export async function PUT(request, { params }) {
 
     // Get the challenge to check if it exists and get its institution
     const existingChallenge = await prisma.challenge.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: id },
       include: { institution: true },
     });
 
@@ -96,15 +95,16 @@ export async function PUT(request, { params }) {
     }
 
     const updatedChallenge = await prisma.challenge.update({
-      where: { id: parseInt(id) },
+      where: { id: id },
       data: {
         statement,
         help: help || null,
         solution,
         level,
-        score,
-        score_base,
-        score_min,
+        institution_id: institution_id === 'null' ? null : institution_id,
+        initial_score,
+        // Update current_score to match initial_score if it's being changed
+        current_score: initial_score,
       },
       include: {
         institution: true,
@@ -126,7 +126,7 @@ export async function DELETE(request, { params }) {
     const { id } = params;
 
     const existingChallenge = await prisma.challenge.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: id },
       select: { id: true },
     });
 
@@ -138,7 +138,7 @@ export async function DELETE(request, { params }) {
     }
 
     await prisma.challenge.delete({
-      where: { id: parseInt(id) },
+      where: { id: id },
     });
 
     return NextResponse.json({ message: "Challenge deleted" });

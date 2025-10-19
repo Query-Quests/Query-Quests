@@ -1,22 +1,45 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  Users, 
-  Database, 
-  BarChart3, 
-  Settings, 
-  Shield, 
-  Home,
-  Menu,
-  X,
-  Landmark,
-  MessageSquare,
-} from "lucide-react";
+import { Shield, Menu, BarChart3, Users, Database, Landmark, MessageSquare, Settings } from "lucide-react";
+import AdminTeacherSidebar from "@/components/AdminTeacherSidebar";
+
+const adminNavItems = [
+  {
+    title: "Dashboard",
+    href: "/admin",
+    icon: <BarChart3 className="h-4 w-4" />,
+  },
+  {
+    title: "Users Management",
+    href: "/admin/users",
+    icon: <Users className="h-4 w-4" />,
+  },
+  {
+    title: "Challenges",
+    href: "/admin/challenges",
+    icon: <Database className="h-4 w-4" />,
+  },
+  {
+    title: "Institutions",
+    href: "/admin/institutions",
+    icon: <Landmark className="h-4 w-4" />,
+  },
+  {
+    title: "Contact Requests",
+    href: "/admin/contact-requests",
+    icon: <MessageSquare className="h-4 w-4" />,
+  },
+  {
+    title: "Settings",
+    href: "/admin/settings",
+    icon: <Settings className="h-4 w-4" />,
+  },
+];
 
 export default function AdminLayout({ children }) {
   // Get initial sidebar state - always open on desktop, persistent across navigation
@@ -38,11 +61,22 @@ export default function AdminLayout({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
 
-  // For demo purposes, using user ID 1 - in a real app, this would come from authentication
-  const userId = 1;
-
   useEffect(() => {
-    fetchUserData();
+    // Get user data from localStorage first
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        fetchUserData(parsedUser.id);
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+        window.location.href = "/home";
+      }
+    } else {
+      // No user data in localStorage, redirect to auth
+      window.location.href = "/auth";
+    }
   }, []);
 
   // Ensure sidebar stays open on desktop during navigation
@@ -85,61 +119,30 @@ export default function AdminLayout({ children }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const fetchUserData = async () => {
+  const fetchUserData = async (userId) => {
     try {
       const response = await fetch(`/api/users/${userId}`);
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
         
-        // Check if user is admin, if not redirect to main page
+        // Check if user is admin, if not redirect to home page
         if (!userData.isAdmin) {
-          window.location.href = "/main";
+          console.log("Access denied: User is not admin");
+          window.location.href = "/home";
         }
       } else {
-        // If user not found or not admin, redirect to main page
-        window.location.href = "/main";
+        // If user not found or not admin, redirect to home page
+        console.log("Access denied: User not found or API error");
+        window.location.href = "/home";
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
-      window.location.href = "/main";
+      window.location.href = "/home";
     } finally {
       setIsLoading(false);
     }
   };
-
-  const adminNavItems = [
-    {
-      title: "Dashboard",
-      href: "/admin",
-      icon: <BarChart3 className="h-4 w-4" />,
-    },
-    {
-      title: "Users Management",
-      href: "/admin/users",
-      icon: <Users className="h-4 w-4" />,
-    },
-    {
-      title: "Challenges",
-      href: "/admin/challenges",
-      icon: <Database className="h-4 w-4" />,
-    },
-    {
-      title: "Institutions",
-      href: "/admin/institutions",
-      icon: <Landmark className="h-4 w-4" />,
-    },
-    {
-      title: "Contact Requests",
-      href: "/admin/contact-requests",
-      icon: <MessageSquare className="h-4 w-4" />,
-    },
-    {
-      title: "Settings",
-      href: "/admin/settings",
-      icon: <Settings className="h-4 w-4" />,
-    },
-  ];
 
   if (isLoading) {
     return (
@@ -153,7 +156,7 @@ export default function AdminLayout({ children }) {
   }
 
   if (!user || !user.isAdmin) {
-    return (
+    return ( 
       <div className="flex items-center justify-center min-h-screen">
         <Card className="w-96">
           <CardHeader>
@@ -162,7 +165,7 @@ export default function AdminLayout({ children }) {
           <CardContent className="text-center">
             <p className="mb-4">You don&apos;t have permission to access the admin panel.</p>
             <Button asChild>
-              <Link href="/main">Go to Main Page</Link>
+              <Link href="/home">Go to Main Page</Link>
             </Button>
           </CardContent>
         </Card>
@@ -181,72 +184,16 @@ export default function AdminLayout({ children }) {
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg ${
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
-        <div className="flex flex-col h-screen">
-          {/* Mobile close button */}
-          <div className="flex justify-end p-4 border-b lg:hidden">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsSidebarOpen(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* User Info */}
-          <div className="p-4 border-b">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-medium">
-                  {user.name?.charAt(0) || 'A'}
-                </span>
-              </div>
-              <div>
-                <p className="text-sm font-medium">{user.name}</p>
-                <p className="text-xs text-muted-foreground">Administrator</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Navigation - Scrollable */}
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            {adminNavItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                  onClick={() => setIsSidebarOpen(false)}
-                >
-                  {item.icon}
-                  <span>{item.title}</span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Footer - Always at bottom */}
-          <div className="p-4 border-t mt-auto">
-            <Button variant="ghost" asChild className="w-full justify-start">
-              <Link href="/main" className="flex items-center space-x-3">
-                <Home className="h-4 w-4" />
-                <span>Back to Main</span>
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </div>
-
+      <AdminTeacherSidebar
+        user={user}
+        navItems={adminNavItems}
+        panelType="admin"
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen} 
+      />
+      
       {/* Main content */}
-      <div className="flex-1 min-h-screen bg-gray-50 overflow-auto lg:ml-64">
+      <div className="flex-1 min-h-screen bg-white overflow-auto lg:ml-64">
         {/* Top bar */}
         <div className="bg-white shadow-sm border-b px-4 py-3 sticky top-0 z-10">
           <div className="flex items-center justify-between">
@@ -271,7 +218,7 @@ export default function AdminLayout({ children }) {
         </div>
 
         {/* Page content */}
-        <main className="p-4 lg:p-6">
+        <main className="lg:p-6">
           <div className="max-w-6xl mx-auto">
             {children}
           </div>

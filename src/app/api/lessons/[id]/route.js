@@ -5,7 +5,7 @@ export async function GET(request, { params }) {
   try {
     const { id } = await params;
     const lesson = await prisma.lesson.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: id },
       include: {
         institution: true,
         creator: {
@@ -66,7 +66,7 @@ export async function PUT(request, { params }) {
     }
 
     const updatedLesson = await prisma.lesson.update({
-      where: { id: parseInt(id) },
+      where: { id: id },
       data: {
         title,
         content,
@@ -112,7 +112,7 @@ export async function DELETE(request, { params }) {
 
     // Verify the deleter is a teacher or admin
     const deleter = await prisma.user.findUnique({
-      where: { id: parseInt(deleter_id) },
+      where: { id: deleter_id },
     });
 
     if (!deleter || (!deleter.isTeacher && !deleter.isAdmin)) {
@@ -123,7 +123,7 @@ export async function DELETE(request, { params }) {
     }
 
     await prisma.lesson.delete({
-      where: { id: parseInt(id) },
+      where: { id: id },
     });
 
     return NextResponse.json({ message: "Lesson deleted successfully" });

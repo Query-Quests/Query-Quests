@@ -5,7 +5,7 @@ export async function GET(request, { params }) {
   try {
     const { id } = await params;
     const institution = await prisma.institution.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: id },
       include: {
         users: true,
       },
@@ -39,7 +39,7 @@ export async function PUT(request, { params }) {
     }
 
     const updatedInstitution = await prisma.institution.update({
-      where: { id: parseInt(id) },
+      where: { id: id },
       data: {
         name,
         address: address || null,
@@ -61,7 +61,7 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     const { id } = await params;
-    const institutionId = parseInt(id);
+    const institutionId = id;
 
     // Get counts for confirmation message
     const userCount = await prisma.user.count({

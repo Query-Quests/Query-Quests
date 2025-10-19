@@ -49,7 +49,7 @@ export default function VerifyEmail() {
   };
 
   const handleLogin = () => {
-    router.push("/");
+    router.push("/auth");
   };
 
   return (

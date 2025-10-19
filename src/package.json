@@ -8,11 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "node prisma/seed.js",
+    "create-admin": "node scripts/create-admin.js",
     "verify-email": "node scripts/verify-email.js",
-    "socket": "node lib/flexible-socket-server.js",
     "shell": "node lib/shell-server.js",
-    "dev:full": "concurrently \"npm run dev\" \"npm run socket\"",
-    "dev:complete": "concurrently \"npm run dev\" \"npm run socket\" \"npm run shell\""
+    "dev:full": "concurrently \"npm run dev\" \"npm run shell\""
   },
   "prisma": {
     "seed": "node prisma/seed.js"

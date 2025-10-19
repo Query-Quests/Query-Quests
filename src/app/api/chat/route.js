@@ -109,7 +109,7 @@ async function getChallengeContext(challengeId) {
   if (!challengeId) return null;
   
   const challenge = await prisma.challenge.findUnique({
-    where: { id: parseInt(challengeId) },
+    where: { id: challengeId },
     include: {
       institution: true,
       _count: {
@@ -133,7 +133,7 @@ async function getLessonContext(lessonId) {
   if (!lessonId) return null;
   
   const lesson = await prisma.lesson.findUnique({
-    where: { id: parseInt(lessonId) },
+    where: { id: lessonId },
     include: {
       institution: true,
       creator: {

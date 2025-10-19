@@ -157,7 +157,7 @@ export default function AdminDashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {stats.map((stat, index) => (
-          <Card key={index} className="border-0 shadow-sm">
+          <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-3 pt-3">
               <CardTitle className="text-xs font-medium">{stat.title}</CardTitle>
               <div className={`p-1.5 rounded-md ${stat.bgColor}`}>

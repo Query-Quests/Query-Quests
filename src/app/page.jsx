@@ -1,559 +1,141 @@
-"use client";
-
-import { useState } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
-import { 
-  Eye, 
-  EyeOff, 
-  Mail, 
-  Lock, 
-  User, 
-  Database, 
-  ArrowRight,
-  Building
-} from "lucide-react";
+import { Database, ArrowRight, BookOpen, Users, Trophy } from "lucide-react";
 import Link from "next/link";
-import ContactForm from "@/components/ContactForm";
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState("login");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [emailValidation, setEmailValidation] = useState({ isValid: false, message: "", institution: null, role: null });
-  const [isValidatingEmail, setIsValidatingEmail] = useState(false);
-  const [showContactForm, setShowContactForm] = useState(false);
-
-  // Form states
-  const [loginForm, setLoginForm] = useState({
-    email: "",
-    password: "",
-    remember: false
-  });
-
-  const [registerForm, setRegisterForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    terms: false
-  });
-
-  const togglePasswordVisibility = () => setShowPassword(!showPassword);
-  const toggleConfirmPasswordVisibility = () => setShowConfirmPassword(!showConfirmPassword);
-
-  // Email validation function
-  const validateEmail = async (email) => {
-    if (!email || email.length < 5) {
-      setEmailValidation({ isValid: false, message: "", institution: null, role: null });
-      return;
-    }
-
-    setIsValidatingEmail(true);
-    try {
-      const response = await fetch('/api/validate-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-      setEmailValidation(data);
-    } catch (error) {
-      setEmailValidation({ isValid: false, message: "Error validating email", institution: null, role: null });
-    } finally {
-      setIsValidatingEmail(false);
-    }
-  };
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      const response = await fetch('/api/auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: loginForm.email,
-          password: loginForm.password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess("Login successful! Redirecting...");
-        // Store user data in localStorage
-        localStorage.setItem('user', JSON.stringify(data.user));
-        // Redirect to main page after a short delay
-        setTimeout(() => {
-          window.location.href = '/main';
-        }, 1000);
-      } else {
-        setError(data.error || "Login failed");
-      }
-    } catch (error) {
-      setError("Network error. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
-    setSuccess("");
-
-    // Validate passwords match
-    if (registerForm.password !== registerForm.confirmPassword) {
-      setError("Passwords do not match");
-      setIsLoading(false);
-      return;
-    }
-
-    // Validate email domain
-    if (!emailValidation.isValid) {
-      setError("Please use a valid email address from a registered institution");
-      setIsLoading(false);
-      return;
-    }
-
-    // Validate terms agreement
-    if (!registerForm.terms) {
-      setError("Please agree to the Terms of Service and Privacy Policy");
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: `${registerForm.firstName} ${registerForm.lastName}`,
-          email: registerForm.email,
-          password: registerForm.password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess(data.message || "Registration successful! Please check your email to verify your account.");
-        setActiveTab("login");
-        setRegisterForm({
-          firstName: "",
-          lastName: "",
-          email: "",
-          password: "",
-          confirmPassword: "",
-          terms: false
-        });
-      } else {
-        setError(data.error || "Registration failed");
-      }
-    } catch (error) {
-      setError("Network error. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen flex">
-      {/* Left Column - Authentication */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 lg:p-12">
-        <div className="w-full max-w-md space-y-8">
-          {/* Logo and Title */}
-          <div className="text-center space-y-2">
-            <div className="flex items-center justify-center mb-6">
-              <Database className="h-12 w-12 text-blue-600" />
-              <span className="ml-3 text-2xl font-bold text-gray-900">QueryQuest</span>
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Welcome to SQL Learning
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Hero Section */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10"></div>
+        
+        {/* Navigation */}
+        <nav className="relative z-10 flex justify-between items-center p-6 lg:px-12">
+          <div className="flex items-center">
+            <Database className="h-10 w-10 text-blue-600" />
+            <span className="ml-3 text-2xl font-bold text-gray-900">QueryQuest</span>
+          </div>
+          <Link href="/auth">
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              Get Started
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+        </nav>
+
+        {/* Hero Content */}
+        <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-12 py-24">
+          <div className="text-center">
+            <h1 className="text-5xl lg:text-7xl font-bold text-gray-900 mb-6">
+              SQL Learning for
+              <span className="text-blue-600"> Institutions</span>
             </h1>
-            <p className="text-gray-600">
-              Master SQL through interactive challenges and real-world practice
+            <p className="text-xl lg:text-2xl text-gray-700 mb-8 max-w-3xl mx-auto leading-relaxed">
+              A comprehensive SQL learning platform designed for educational institutions 
+              and their students. Build database skills through interactive challenges and real-world practice.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
+              <Link href="/auth">
+                <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-4">
+                  Start Learning Now
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+              <Link href="/auth?tab=register">
+                <Button variant="outline" size="lg" className="text-lg px-8 py-4">
+                  Sign Up Free
+                </Button>
+              </Link>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
+              <div className="text-center">
+                <div className="text-4xl font-bold text-blue-600 mb-2">200+</div>
+                <div className="text-gray-600">Institutions</div>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-blue-600 mb-2">50K+</div>
+                <div className="text-gray-600">Students</div>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-blue-600 mb-2">98%</div>
+                <div className="text-gray-600">Satisfaction</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Decorative elements */}
+        <div className="absolute top-20 right-20 w-32 h-32 bg-blue-400/20 rounded-full"></div>
+        <div className="absolute bottom-20 left-20 w-24 h-24 bg-purple-400/20 rounded-full"></div>
+        <div className="absolute top-1/2 left-10 w-16 h-16 bg-indigo-400/20 rounded-full"></div>
+      </div>
+
+      {/* Features Section */}
+      <div className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Built for Educational Excellence
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Designed specifically for institutions to deliver comprehensive SQL education to their students
             </p>
           </div>
 
-          {/* Tab Navigation */}
-          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
-            <button
-              onClick={() => setActiveTab("login")}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                activeTab === "login"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => setActiveTab("register")}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                activeTab === "register"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              Sign Up
-            </button>
-          </div>
-
-          {/* Login Form */}
-          {activeTab === "login" && (
-            <form onSubmit={handleLogin}>
-              <Card className="border border-gray-200 shadow-sm">
-                <CardContent className="p-6 space-y-4">
-                  {error && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                      <p className="text-sm text-red-600">{error}</p>
-                    </div>
-                  )}
-                  {success && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                      <p className="text-sm text-green-600">{success}</p>
-                    </div>
-                  )}
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="Enter your email"
-                        className="pl-10"
-                        value={loginForm.email}
-                        onChange={(e) => setLoginForm({...loginForm, email: e.target.value})}
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Enter your password"
-                        className="pl-10 pr-10"
-                        value={loginForm.password}
-                        onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={togglePasswordVisibility}
-                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="remember"
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        checked={loginForm.remember}
-                        onChange={(e) => setLoginForm({...loginForm, remember: e.target.checked})}
-                      />
-                      <Label htmlFor="remember" className="text-sm text-gray-600">
-                        Remember me
-                      </Label>
-                    </div>
-                    <button type="button" className="text-sm text-blue-600 hover:text-blue-700">
-                      Forgot password?
-                    </button>
-                  </div>
-
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Signing In..." : "Sign In"}
-                    {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
-                  </Button>
-                </CardContent>
-              </Card>
-            </form>
-          )}
-
-          {/* Register Form */}
-          {activeTab === "register" && (
-            <form onSubmit={handleRegister}>
-              <Card className="border border-gray-200 shadow-sm">
-                <CardContent className="p-6 space-y-4">
-                  {error && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                      <p className="text-sm text-red-600">{error}</p>
-                    </div>
-                  )}
-                  {success && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                      <p className="text-sm text-green-600">{success}</p>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="firstName"
-                          type="text"
-                          placeholder="First name"
-                          className="pl-10"
-                          value={registerForm.firstName}
-                          onChange={(e) => setRegisterForm({...registerForm, firstName: e.target.value})}
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="lastName"
-                          type="text"
-                          placeholder="Last name"
-                          className="pl-10"
-                          value={registerForm.lastName}
-                          onChange={(e) => setRegisterForm({...registerForm, lastName: e.target.value})}
-                          required
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="registerEmail">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="registerEmail"
-                        type="email"
-                        placeholder="Enter your email"
-                        className={`pl-10 ${emailValidation.isValid ? 'border-green-500' : emailValidation.message && !emailValidation.isValid ? 'border-red-500' : ''}`}
-                        value={registerForm.email}
-                        onChange={(e) => {
-                          setRegisterForm({...registerForm, email: e.target.value});
-                          // Debounce email validation
-                          clearTimeout(window.emailValidationTimeout);
-                          window.emailValidationTimeout = setTimeout(() => {
-                            validateEmail(e.target.value);
-                          }, 500);
-                        }}
-                        required
-                      />
-                      {isValidatingEmail && (
-                        <div className="absolute right-3 top-3">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                        </div>
-                      )}
-                    </div>
-                    {emailValidation.message && (
-                      <div className={`text-sm ${emailValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>
-                        {emailValidation.message}
-                        {!emailValidation.isValid && emailValidation.message.includes("not recognized") && (
-                          <div className="mt-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setShowContactForm(true)}
-                              className="text-xs"
-                            >
-                              <Building className="mr-1 h-3 w-3" />
-                              Request Institution Access
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="registerPassword">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="registerPassword"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Create a password"
-                        className="pl-10 pr-10"
-                        value={registerForm.password}
-                        onChange={(e) => setRegisterForm({...registerForm, password: e.target.value})}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={togglePasswordVisibility}
-                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="confirmPassword"
-                        type={showConfirmPassword ? "text" : "password"}
-                        placeholder="Confirm your password"
-                        className="pl-10 pr-10"
-                        value={registerForm.confirmPassword}
-                        onChange={(e) => setRegisterForm({...registerForm, confirmPassword: e.target.value})}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={toggleConfirmPasswordVisibility}
-                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                      >
-                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="terms"
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      checked={registerForm.terms}
-                      onChange={(e) => setRegisterForm({...registerForm, terms: e.target.checked})}
-                    />
-                    <Label htmlFor="terms" className="text-sm text-gray-600">
-                      I agree to the{" "}
-                      <a href="/terms" className="text-blue-600 hover:text-blue-700" target="_blank" rel="noopener noreferrer">
-                        Terms of Service
-                      </a>{" "}
-                      and{" "}
-                      <a href="/privacy" className="text-blue-600 hover:text-blue-700" target="_blank" rel="noopener noreferrer">
-                        Privacy Policy
-                      </a>
-                    </Label>
-                  </div>
-
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Creating Account..." : "Create Account"}
-                    {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
-                  </Button>
-                </CardContent>
-              </Card>
-            </form>
-          )}
-
-          {/* Footer */}
-          <div className="text-center text-sm text-gray-600">
-            {activeTab === "login" ? (
-              <p>
-                Don&apos;t have an account?{" "}
-                <button
-                  onClick={() => setActiveTab("register")}
-                  className="text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  Sign up
-                </button>
+          <div className="grid md:grid-cols-3 gap-12">
+            <div className="text-center">
+              <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                <BookOpen className="h-8 w-8 text-blue-600" />
+              </div>
+              <h3 className="text-2xl font-semibold text-gray-900 mb-4">Structured Curriculum</h3>
+              <p className="text-gray-600">
+                Comprehensive learning paths designed for institutional use, with progressive challenges that build from fundamentals to advanced concepts.
               </p>
-            ) : (
-              <p>
-                Already have an account?{" "}
-                <button
-                  onClick={() => setActiveTab("login")}
-                  className="text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  Sign in
-                </button>
+            </div>
+
+            <div className="text-center">
+              <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Users className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="text-2xl font-semibold text-gray-900 mb-4">Institutional Access</h3>
+              <p className="text-gray-600">
+                Secure, institution-based access control ensuring students can only access content through their registered educational institution.
               </p>
-            )}
+            </div>
+
+            <div className="text-center">
+              <div className="bg-yellow-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Trophy className="h-8 w-8 text-yellow-600" />
+              </div>
+              <h3 className="text-2xl font-semibold text-gray-900 mb-4">Student Analytics</h3>
+              <p className="text-gray-600">
+                Comprehensive progress tracking for educators to monitor student performance and identify areas for improvement.
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Right Column - Image */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-50 to-indigo-100 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20"></div>
-        <div className="relative z-10 flex items-center justify-center w-full">
-          <div className="text-center text-white p-12 max-w-lg">
-            <div className="mb-8">
-              <Database className="h-24 w-24 mx-auto mb-6 text-white/90" />
-              <h2 className="text-4xl font-bold mb-4 text-gray-900">
-                Master SQL with Confidence
-              </h2>
-              <p className="text-xl text-gray-700 leading-relaxed">
-                Join thousands of learners who have improved their database skills 
-                through our interactive SQL challenges and real-world projects.
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-6 text-center">
-              <div>
-                <div className="text-3xl font-bold text-blue-600 mb-2">500+</div>
-                <div className="text-sm text-gray-600">Challenges</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-blue-600 mb-2">10K+</div>
-                <div className="text-sm text-gray-600">Students</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-blue-600 mb-2">95%</div>
-                <div className="text-sm text-gray-600">Success Rate</div>
-              </div>
-            </div>
-          </div>
+      {/* CTA Section */}
+      <div className="py-24 bg-gradient-to-br from-blue-600 to-purple-600">
+        <div className="max-w-4xl mx-auto text-center px-6 lg:px-12">
+          <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6">
+            Ready to Join Your Institution?
+          </h2>
+          <p className="text-xl text-blue-100 mb-8">
+            Access QueryQuest through your educational institution&apos;s SQL learning program
+          </p>
+          <Link href="/auth">
+            <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100 text-lg px-8 py-4">
+              Sign In with Institution email
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </Link>
         </div>
-        
-        {/* Decorative elements */}
-        <div className="absolute top-10 right-10 w-32 h-32 bg-blue-400/20 rounded-full"></div>
-        <div className="absolute bottom-20 left-10 w-24 h-24 bg-purple-400/20 rounded-full"></div>
-        <div className="absolute top-1/2 left-20 w-16 h-16 bg-indigo-400/20 rounded-full"></div>
       </div>
-
-      {/* Contact Form Modal */}
-      {showContactForm && (
-        <ContactForm
-          onClose={() => setShowContactForm(false)}
-          userEmail={registerForm.email}
-        />
-      )}
     </div>
   );
 }

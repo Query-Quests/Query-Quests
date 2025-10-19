@@ -5,7 +5,7 @@ export async function GET(request, { params }) {
   try {
     const { id } = await params;
     const user = await prisma.user.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: id },
       include: {
         institution: true,
       },
@@ -36,7 +36,7 @@ export async function PUT(request, { params }) {
       const existingUser = await prisma.user.findFirst({
         where: {
           email: email,
-          id: { not: parseInt(id) } // Exclude current user
+          id: { not: id } // Exclude current user
         }
       });
 
@@ -49,11 +49,11 @@ export async function PUT(request, { params }) {
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: parseInt(id) },
+      where: { id: id },
       data: {
         name: name || undefined,
         email: email || undefined,
-        institution_id: institution_id && institution_id !== "none" ? parseInt(institution_id) : null,
+        institution_id: institution_id && institution_id !== "none" ? institution_id : null,
         isAdmin: isAdmin !== undefined ? isAdmin : undefined,
         isTeacher: isTeacher !== undefined ? isTeacher : undefined,
       },
@@ -78,7 +78,7 @@ export async function DELETE(request, { params }) {
     
     // Check if user exists
     const user = await prisma.user.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: id },
     });
 
     if (!user) {
@@ -87,7 +87,7 @@ export async function DELETE(request, { params }) {
 
     // Delete the user
     await prisma.user.delete({
-      where: { id: parseInt(id) },
+      where: { id: id },
     });
 
     return NextResponse.json({ message: "User deleted successfully" });

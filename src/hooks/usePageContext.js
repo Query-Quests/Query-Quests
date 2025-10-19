@@ -134,7 +134,7 @@ export function usePageContext() {
     }
     
     // Main dashboard
-    else if (pathname === '/main') {
+    else if (pathname === '/home') {
       newContext = {
         type: 'dashboard',
         page: 'main-dashboard'

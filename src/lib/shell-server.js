@@ -1,9 +1,5 @@
-// Interactive Shell Server using node-pty and WebSocket
-// Based on: https://www.eddymens.com/blog/creating-a-browser-based-interactive-terminal-using-xtermjs-and-nodejs
-
 const WebSocket = require('ws');
 const pty = require('node-pty');
-const os = require('os');
 
 class ShellSocketServer {
   constructor(port = 3002) {
@@ -114,11 +110,8 @@ class ShellSocketServer {
 
     // Send initial welcome message
     if (ws.readyState === WebSocket.OPEN) {
-      const welcomeMsg = `🔗 Direct MySQL Connection Established\r\n`;
-      const infoMsg = `📊 Database: queryquest@mysql:3306\r\n`;
-      const userInfo = `👤 User: root (full access)\r\n`;
       const promptMsg = `💡 Ready for SQL commands!\r\n\r\n`;
-      ws.send(welcomeMsg + infoMsg + userInfo + promptMsg);
+      ws.send(promptMsg);
     }
   }
 

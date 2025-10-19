@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
-  Settings, 
   Save, 
   Database, 
   Users, 
@@ -115,7 +113,7 @@ export default function AdminSettings() {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="space-y-8 max-w-6xl">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
         <div>
@@ -135,266 +133,90 @@ export default function AdminSettings() {
         </Button>
       </div>
 
-      {/* Settings Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Platform Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              Platform Settings
-            </CardTitle>
-            <CardDescription>
-              Basic platform configuration
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="platformName">Platform Name</Label>
-              <Input
-                id="platformName"
-                value={settings.platformName}
-                onChange={(e) => setSettings({ ...settings, platformName: e.target.value })}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="maxUsersPerInstitution">Max Users per Institution</Label>
-              <Input
-                id="maxUsersPerInstitution"
-                type="number"
-                value={settings.maxUsersPerInstitution}
-                onChange={(e) => setSettings({ ...settings, maxUsersPerInstitution: parseInt(e.target.value) })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="defaultUserRole">Default User Role</Label>
-              <Select 
-                value={settings.defaultUserRole} 
-                onValueChange={(value) => setSettings({ ...settings, defaultUserRole: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="teacher">Teacher</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* User Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              User Settings
-            </CardTitle>
-            <CardDescription>
-              User-related configuration
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Email Verification</Label>
-                <p className="text-sm text-muted-foreground">Require email verification for new users</p>
-              </div>
-              <Button
-                variant={settings.enableEmailVerification ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSettings({ ...settings, enableEmailVerification: !settings.enableEmailVerification })}
-              >
-                {settings.enableEmailVerification ? "Enabled" : "Disabled"}
-              </Button>
-            </div>
-
-
-
-            <div className="space-y-2">
-              <Label htmlFor="maxChallengesPerUser">Max Challenges per User</Label>
-              <Input
-                id="maxChallengesPerUser"
-                type="number"
-                value={settings.maxChallengesPerUser}
-                onChange={(e) => setSettings({ ...settings, maxChallengesPerUser: parseInt(e.target.value) })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="pointsPerChallenge">Points per Challenge</Label>
-              <Input
-                id="pointsPerChallenge"
-                type="number"
-                value={settings.pointsPerChallenge}
-                onChange={(e) => setSettings({ ...settings, pointsPerChallenge: parseInt(e.target.value) })}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* System Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              System Settings
-            </CardTitle>
-            <CardDescription>
-              System-wide configuration
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Maintenance Mode</Label>
-                <p className="text-sm text-muted-foreground">Put platform in maintenance mode</p>
-              </div>
-              <Button
-                variant={settings.maintenanceMode ? "destructive" : "outline"}
-                size="sm"
-                onClick={() => setSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })}
-              >
-                {settings.maintenanceMode ? "Enabled" : "Disabled"}
-              </Button>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="theme">Default Theme</Label>
-              <Select 
-                value={settings.theme} 
-                onValueChange={(value) => setSettings({ ...settings, theme: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="light">Light</SelectItem>
-                  <SelectItem value="dark">Dark</SelectItem>
-                  <SelectItem value="system">System</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="language">Default Language</Label>
-              <Select 
-                value={settings.language} 
-                onValueChange={(value) => setSettings({ ...settings, language: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="es">Spanish</SelectItem>
-                  <SelectItem value="fr">French</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Security Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lock className="h-5 w-5" />
-              Security Settings
-            </CardTitle>
-            <CardDescription>
-              Security and access control
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Password Policy</Label>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center space-x-2">
-                  <Badge variant="secondary">Minimum 8 characters</Badge>
-                  <Badge variant="secondary">Include numbers</Badge>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Badge variant="secondary">Include special characters</Badge>
-                  <Badge variant="secondary">Mixed case</Badge>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Session Management</Label>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span>Session timeout</span>
-                  <Badge variant="outline">24 hours</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Max concurrent sessions</span>
-                  <Badge variant="outline">3</Badge>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Access Control</Label>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span>Admin panel access</span>
-                  <Badge variant="destructive">Admin only</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>API rate limiting</span>
-                  <Badge variant="default">Enabled</Badge>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* System Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      {/* System Actions Row */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-semibold flex items-center gap-2">
             <Database className="h-5 w-5" />
             System Actions
-          </CardTitle>
-          <CardDescription>
+          </h2>
+          <p className="text-muted-foreground text-sm">
             Administrative actions and data management
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Button variant="outline" onClick={handleExportData} className="flex flex-col items-center space-y-2 h-auto py-4">
-              <Download className="h-6 w-6" />
-              <span>Export Data</span>
-            </Button>
-            
-            <Button variant="outline" className="flex flex-col items-center space-y-2 h-auto py-4">
-              <Upload className="h-6 w-6" />
-              <span>Import Data</span>
-            </Button>
-            
-            <Button variant="outline" className="flex flex-col items-center space-y-2 h-auto py-4">
-              <RefreshCw className="h-6 w-6" />
-              <span>Clear Cache</span>
-            </Button>
-            
-            <Button 
-              variant="destructive" 
-              onClick={handleResetSystem}
-              className="flex flex-col items-center space-y-2 h-auto py-4"
-            >
-              <Shield className="h-6 w-6" />
-              <span>Reset System</span>
-            </Button>
+          </p>
+        </div>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between py-3 border-b">
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <Download className="h-5 w-5" />
+                <div>
+                  <Label className="text-base font-medium">Export Data</Label>
+                  <p className="text-sm text-muted-foreground">Download all platform data as JSON</p>
+                </div>
+              </div>
+            </div>
+            <div className="w-80 flex justify-end">
+              <Button variant="outline" onClick={handleExportData}>
+                Export Data
+              </Button>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+          
+          <div className="flex items-center justify-between py-3 border-b">
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <Upload className="h-5 w-5" />
+                <div>
+                  <Label className="text-base font-medium">Import Data</Label>
+                  <p className="text-sm text-muted-foreground">Upload and restore data from file</p>
+                </div>
+              </div>
+            </div>
+            <div className="w-80 flex justify-end">
+              <Button variant="outline">
+                Import Data
+              </Button>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between py-3 border-b">
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <RefreshCw className="h-5 w-5" />
+                <div>
+                  <Label className="text-base font-medium">Clear Cache</Label>
+                  <p className="text-sm text-muted-foreground">Clear all cached data and reset cache</p>
+                </div>
+              </div>
+            </div>
+            <div className="w-80 flex justify-end">
+              <Button variant="outline">
+                Clear Cache
+              </Button>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between py-3 border-b">
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <Shield className="h-5 w-5" />
+                <div>
+                  <Label className="text-base font-medium">Reset System</Label>
+                  <p className="text-sm text-muted-foreground">Reset entire system - dangerous action</p>
+                </div>
+              </div>
+            </div>
+            <div className="w-80 flex justify-end">
+              <Button 
+                variant="destructive" 
+                onClick={handleResetSystem}
+              >
+                Reset System
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 } 

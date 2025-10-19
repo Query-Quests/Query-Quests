@@ -16,9 +16,9 @@ export function middleware(request) {
     const userCookie = request.cookies.get('user');
     const authToken = request.cookies.get('auth-token');
     
-    // If user is logged in (has user cookie or auth token), redirect to /main
+    // If user is logged in (has user cookie or auth token), redirect to /home
     if (userCookie || authToken) {
-      return NextResponse.redirect(new URL('/main', request.url));
+      return NextResponse.redirect(new URL('/home', request.url));
     }
   }
   

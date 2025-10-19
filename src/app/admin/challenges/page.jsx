@@ -357,7 +357,7 @@ export default function ChallengesManagement() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2 mb-2">
-              <TrendingUp className="h-4 w-4 text-orange-600" />
+              <TrendingUp className="h-4 w-4 text-blue-600" />
               <span className="text-sm font-medium">Total Points</span>
             </div>
             <p className="text-2xl font-bold">

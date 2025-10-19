@@ -41,7 +41,7 @@ export default function Header() {
     } finally {
       // Clear localStorage and redirect
       localStorage.removeItem("user");
-      router.push("/");
+      router.push("/auth");
     }
   };
 
@@ -61,17 +61,17 @@ export default function Header() {
     <header className="bg-background border-b">
       <div className="container-sm mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link href={user ? "/main" : "/"} className="flex-shrink-0">
+          <Link href={user ? "/home" : "/auth"} className="flex-shrink-0">
             <Database className="h-8 w-8 text-primary" aria-hidden="true" />
             <span className="sr-only">SQL Learn</span>
           </Link>
           <div className="flex items-center">
             <div className="flex justify-center">
               <nav className="hidden md:ml-6 md:flex md:space-x-8">
-                <NavLink href="/main">Home</NavLink>
+                <NavLink href="/home">Home</NavLink>
                 <NavLink href="/lessons">Lessons</NavLink>
                 <NavLink href="/challenges">Challenges</NavLink>
-                <NavLink href="/playground">SQL Playground</NavLink>
+                {/* <NavLink href="/playground">SQL Playground</NavLink> */}
               </nav>
             </div>
           </div>
@@ -117,7 +117,7 @@ export default function Header() {
             <div className="flex items-center px-5">
               <div className="flex-shrink-0">
                 <Avatar>
-                  <AvatarImage src="https://github.com/shadcn.png" alt="User" />
+                  <AvatarImage src={user?.image_url || "https://github.com/shadcn.png"} alt="User" />
                   <AvatarFallback>{user?.name?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
               </div>
@@ -187,7 +187,7 @@ function UserMenu({ user, onLogout }) {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
-            <AvatarImage src="https://github.com/shadcn.png" alt="User" />
+            <AvatarImage src={user?.image_url || "https://github.com/shadcn.png"} alt="User" />
             <AvatarFallback>{user?.name?.charAt(0) || 'U'}</AvatarFallback>
           </Avatar>
         </Button>
@@ -199,22 +199,12 @@ function UserMenu({ user, onLogout }) {
             <span>Profile</span>
           </Link>
         </DropdownMenuItem>
-        {user?.isAdmin && (
           <DropdownMenuItem asChild>
             <Link href="/admin" className="flex items-center">
               <Shield className="mr-2 h-4 w-4" />
-              <span>Admin Panel</span>
+              <span>Administration</span>
             </Link>
           </DropdownMenuItem>
-        )}
-        {user?.isTeacher && !user?.isAdmin && (
-          <DropdownMenuItem asChild>
-            <Link href="/teacher" className="flex items-center">
-              <Shield className="mr-2 h-4 w-4" />
-              <span>Teacher Panel</span>
-            </Link>
-          </DropdownMenuItem>
-        )}
         <DropdownMenuItem 
           onClick={onLogout}
           className="hover:bg-red-500 hover:text-white focus:bg-red-500 focus:text-white cursor-pointer"

@@ -33,7 +33,7 @@ export default function Challenges() {
         
         // Fetch challenges for user's institution
         const url = user.institution_id 
-          ? `/api/challenges?institutionId=${user.institution_id}`
+          ? `/api/challenges?institution=${user.institution_id}`
           : '/api/challenges';
           
         const response = await fetch(url);
@@ -47,7 +47,7 @@ export default function Challenges() {
         // Calculate stats
         const total = challengesArray.length;
         const totalSolves = challengesArray.reduce((sum, challenge) => sum + (challenge.solves || 0), 0);
-        const averageScore = total > 0 ? Math.round(challengesArray.reduce((sum, challenge) => sum + (challenge.score || 0), 0) / total) : 0;
+        const averageScore = total > 0 ? Math.round(challengesArray.reduce((sum, challenge) => sum + (challenge.current_score || 0), 0) / total) : 0;
         
         setStats({
           total,
@@ -151,7 +151,7 @@ export default function Challenges() {
                   <p className="text-xs font-medium text-gray-500">Your Progress</p>
                   <p className="text-xl font-bold text-gray-900">{stats.completed}/{stats.total}</p>
                 </div>
-                <Target className="h-5 w-5 text-orange-600" />
+                <Target className="h-5 w-5 text-blue-600" />
               </div>
             </div>
           </div>
@@ -194,7 +194,15 @@ export default function Challenges() {
                     </div>
 
                     {/* Challenges for this level */}
-                    <ChallengeCard challenges={levelChallenges} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {levelChallenges.map((challenge) => (
+                        <ChallengeCard 
+                          key={challenge.id} 
+                          challenge={challenge} 
+                          userId={user?.id}
+                        />
+                      ))}
+                    </div>
                   </div>
                 );
               })}

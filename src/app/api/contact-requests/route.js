@@ -38,7 +38,7 @@ export async function PUT(request) {
     }
 
     const updatedRequest = await prisma.contactRequest.update({
-      where: { id: parseInt(id) },
+      where: { id: id },
       data: { status }
     });
 

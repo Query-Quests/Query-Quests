@@ -8,107 +8,104 @@ datasource db {
 }
 
 model Institution {
-  id                Int         @id @default(autoincrement())
-  name              String
-  address           String?
-  studentEmailSuffix String?    // e.g., "@alum.uca.es"
-  teacherEmailSuffix String?    // e.g., "@uca.es"
-  users             User[]
-  challenges        Challenge[]
-  lessons           Lesson[]
+  id                 String      @id @default(uuid())
+  name               String
+  address            String?
+  studentEmailSuffix String?
+  teacherEmailSuffix String?
+  challenges         Challenge[]
+  lessons            Lesson[]
+  users              User[]
 }
 
 model User {
-  id               Int             @id @default(autoincrement())
-  name             String
-  email            String          @unique
-  isEmailVerified  Boolean         @default(false)
+  id                String          @id @default(uuid())
+  name              String
+  email             String          @unique
+  isEmailVerified   Boolean         @default(false)
   verificationToken String?
-  password         String
-  isTeacher        Boolean         @default(false)
-  isAdmin          Boolean         @default(false)
-  solvedChallenges Int             @default(0)
-  points           Int             @default(0)
-  last_login       DateTime?
-  alias            String?
-  institution_id   Int?
-  logs             Log[]
-  institution      Institution?    @relation(fields: [institution_id], references: [id])
-  userChallenges   UserChallenge[]
-  createdLessons   Lesson[]
+  password          String
+  isTeacher         Boolean         @default(false)
+  isAdmin           Boolean         @default(false)
+  solvedChallenges  Int             @default(0)
+  totalScore        Int             @default(0)
+  last_login        DateTime?
+  institution_id    String?
+  createdLessons    Lesson[]
+  logs              Log[]
+  institution       Institution?    @relation(fields: [institution_id], references: [id])
+  userChallenges    UserChallenge[]
 }
 
 model Challenge {
-  id             Int             @id @default(autoincrement())
+  id             String          @id @default(uuid())
   statement      String
   help           String?
   solution       String
   level          Int
-  score          Int
-  score_base     Int
-  score_min      Int
+  initial_score  Int
+  current_score  Int
   solves         Int             @default(0)
   created_at     DateTime        @default(now())
   updated_at     DateTime        @updatedAt
-  institution_id Int?
+  institution_id String?
+  institution    Institution?    @relation(fields: [institution_id], references: [id])
   logs           Log[]
   userChallenges UserChallenge[]
-  institution    Institution?    @relation(fields: [institution_id], references: [id])
 }
 
 model Log {
-  id           Int       @id @default(autoincrement())
+  id           String    @id @default(uuid())
   uuidTrial    String
   request      String
   response     String?
   error_code   Int?
   isCompleted  Boolean   @default(false)
   timestamp    DateTime  @default(now())
-  challenge_id Int
-  user_id      Int
-  user         User      @relation(fields: [user_id], references: [id])
+  challenge_id String
+  user_id      String
   challenge    Challenge @relation(fields: [challenge_id], references: [id])
+  user         User      @relation(fields: [user_id], references: [id])
 }
 
 model UserChallenge {
-  id           Int       @id @default(autoincrement())
+  id           String    @id @default(uuid())
   score        Int
-  trials       Int       @default(0)
   created_at   DateTime  @default(now())
-  user_id      Int
-  challenge_id Int
-  challenge    Challenge @relation(fields: [challenge_id], references: [id])
+  user_id      String
+  challenge_id String
   user         User      @relation(fields: [user_id], references: [id])
+  challenge    Challenge @relation(fields: [challenge_id], references: [id])
 }
 
 model ContactRequest {
-  id                  Int       @id @default(autoincrement())
-  institutionName     String
-  contactName         String
-  contactEmail        String
-  contactPhone        String?
-  website             String?
-  studentEmailSuffix  String
-  teacherEmailSuffix  String
-  message             String?
-  estimatedStudents   Int?
-  estimatedTeachers   Int?
-  status              String    @default("pending") // "pending", "approved", "rejected"
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @updatedAt
+  id                 String   @id @default(uuid())
+  institutionName    String
+  contactName        String
+  contactEmail       String
+  contactPhone       String?
+  website            String?
+  studentEmailSuffix String
+  teacherEmailSuffix String
+  message            String?
+  estimatedStudents  Int?
+  estimatedTeachers  Int?
+  status             String   @default("pending")
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
 }
 
 model Lesson {
-  id             Int       @id @default(autoincrement())
+  id             String       @id @default(uuid())
   title          String
-  content        String    // Markdown content
+  content        String
   description    String?
-  order          Int       @default(0) // For ordering lessons
-  isPublished    Boolean   @default(false)
-  created_at     DateTime  @default(now())
-  updated_at     DateTime  @updatedAt
-  institution_id Int?
-  creator_id     Int
+  order          Int          @default(0)
+  isPublished    Boolean      @default(false)
+  created_at     DateTime     @default(now())
+  updated_at     DateTime     @updatedAt
+  institution_id String?
+  creator_id     String
+  creator        User         @relation(fields: [creator_id], references: [id])
   institution    Institution? @relation(fields: [institution_id], references: [id])
-  creator        User       @relation(fields: [creator_id], references: [id])
 }

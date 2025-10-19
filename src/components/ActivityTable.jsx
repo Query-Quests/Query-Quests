@@ -46,7 +46,7 @@ export default function ActivityTable({
                   <span className="font-medium text-purple-600"> &quot;{activity.challenge}&quot;</span>
                 )}
                 {activity.points && (
-                  <span className="font-medium text-orange-600"> (+{activity.points} points)</span>
+                  <span className="font-medium text-blue-600"> (+{activity.points} points)</span>
                 )}
               </span>
             </div>

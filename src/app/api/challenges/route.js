@@ -27,12 +27,15 @@ export async function GET(request) {
       whereClause.level = parseInt(level);
     }
     
-    // Institution filter
+    // Institution filter - include both user's institution and global challenges (no institution)
     if (institution) {
       if (institution === 'null') {
         whereClause.institution_id = null;
       } else {
-        whereClause.institution_id = parseInt(institution);
+        whereClause.OR = [
+          { institution_id: institution },
+          { institution_id: null }
+        ];
       }
     }
     
@@ -84,15 +87,13 @@ export async function POST(request) {
       help, 
       solution, 
       level, 
-      score, 
-      score_base, 
-      score_min, 
+      initial_score,
       institution_id: requestInstitutionId,
       creator_id 
     } = data;
 
     // Validate required fields
-    if (!statement || !solution || !level || !score || !score_base || !score_min) {
+    if (!statement || !solution || !level || !initial_score) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -125,7 +126,7 @@ export async function POST(request) {
           );
         }
         
-        if (institutionId && parseInt(institutionId) !== creator.institution_id) {
+        if (institutionId && institutionId !== creator.institution_id) {
           return NextResponse.json(
             { error: "Teachers can only create challenges for their own institution" },
             { status: 403 }
@@ -145,10 +146,9 @@ export async function POST(request) {
         help: help || null,
         solution,
         level,
-        score,
-        score_base,
-        score_min,
-        institution_id: institutionId ? parseInt(institutionId) : null,
+        initial_score,
+        current_score: initial_score, // Start with the same as initial score
+        institution_id: institutionId ? institutionId : null,
       },
       include: {
         institution: true,

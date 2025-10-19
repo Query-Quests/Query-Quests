@@ -37,7 +37,7 @@ export async function GET(request) {
 
     // Institution filter
     if (institution && institution !== 'all') {
-      where.institution_id = parseInt(institution);
+      where.institution_id = institution;
     }
 
     // Get total count for pagination
@@ -46,8 +46,23 @@ export async function GET(request) {
     // Get users with pagination and filtering
     const users = await prisma.user.findMany({
       where,
-      include: {
-        institution: true,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isEmailVerified: true,
+        isTeacher: true,
+        isAdmin: true,
+        solvedChallenges: true,
+        totalScore: true,
+        last_login: true,
+        institution_id: true,
+        institution: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
       },
       orderBy: {
         name: 'asc',
@@ -107,7 +122,7 @@ export async function POST(request) {
         name,
         email,
         password: hashedPassword,
-        institution_id: institution_id && institution_id !== "none" ? parseInt(institution_id) : null,
+        institution_id: institution_id && institution_id !== "none" ? institution_id : null,
         isAdmin: isAdmin || false,
         isTeacher: isTeacher || false,
       },

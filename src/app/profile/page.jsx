@@ -24,20 +24,33 @@ export default function Profile() {
     institution_id: "",
   });
 
-  // For demo purposes, using user ID 1 - in a real app, this would come from authentication
-  const userId = 1;
-
   useEffect(() => {
-    fetchUserData();
+    // Get user data from localStorage first
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        fetchUserData(parsedUser.id);
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+        setIsLoading(false);
+      }
+    } else {
+      setIsLoading(false);
+    }
+    
     fetchInstitutions();
   }, []);
 
-  const fetchUserData = async () => {
+  const fetchUserData = async (userId) => {
     try {
       const response = await fetch(`/api/users/${userId}`);
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
+        // Update localStorage with fresh data
+        localStorage.setItem("user", JSON.stringify(userData));
         setFormData({
           name: userData.name || "",
           email: userData.email || "",
@@ -75,7 +88,7 @@ export default function Profile() {
           : user.institution_id
       };
       
-      const response = await fetch(`/api/users/${userId}`, {
+      const response = await fetch(`/api/users/${user.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
