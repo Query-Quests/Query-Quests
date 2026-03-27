@@ -2,9 +2,9 @@
   "name": "query-quest",
   "private": true,
   "scripts": {
+    "postinstall": "cd src && npm install --legacy-peer-deps",
     "build": "cd src && npx prisma generate && npm run build",
-    "start": "cd src && npm start",
-    "install": "cd src && npm install --legacy-peer-deps"
+    "start": "cd src && npm start"
   },
   "engines": {
     "node": "20.x"
