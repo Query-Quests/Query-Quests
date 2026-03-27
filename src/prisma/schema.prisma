@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Institution {
@@ -56,7 +57,7 @@ model Challenge {
   updated_at       DateTime           @updatedAt
   institution_id   String?
   database_id      String?
-  expectedResult   String?            @db.LongText
+  expectedResult   String?            @db.Text
   requiredKeywords String?            @db.Text
 
   institution    Institution?       @relation(fields: [institution_id], references: [id])
@@ -145,7 +146,7 @@ model ChallengeDatabase {
   mysqlDbName    String       @unique
   tableCount     Int          @default(0)
   rowCount       Int          @default(0)
-  schemaPreview  String?      @db.LongText
+  schemaPreview  String?      @db.Text
   status         String       @default("processing")
   errorMessage   String?      @db.Text
   created_at     DateTime     @default(now())
