@@ -1,12 +1,35 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 
-// Import xterm.js CSS
 import '@xterm/xterm/css/xterm.css';
+
+const THEME = {
+  background: '#030914',
+  foreground: '#e2e8f0',
+  cursor: '#19aa59',
+  cursorAccent: '#030914',
+  selection: '#19aa5940',
+  black: '#0a1628',
+  red: '#f87171',
+  green: '#19aa59',
+  yellow: '#fbbf24',
+  blue: '#60a5fa',
+  magenta: '#a78bfa',
+  cyan: '#22d3ee',
+  white: '#e2e8f0',
+  brightBlack: '#1e293b',
+  brightRed: '#fca5a5',
+  brightGreen: '#4ade80',
+  brightYellow: '#fcd34d',
+  brightBlue: '#93c5fd',
+  brightMagenta: '#c4b5fd',
+  brightCyan: '#67e8f9',
+  brightWhite: '#f8fafc'
+};
 
 const XTerminal = ({
   challengeId = null,
@@ -19,214 +42,196 @@ const XTerminal = ({
   const terminalInstanceRef = useRef(null);
   const socketRef = useRef(null);
   const fitAddonRef = useRef(null);
+  const inputBufferRef = useRef('');
+  const modeRef = useRef(null); // 'ws' or 'api'
   const [isConnected, setIsConnected] = useState(false);
   const [fontSize, setFontSize] = useState(14);
+
+  const formatTable = useCallback((columns, rows) => {
+    if (!columns.length) return '';
+    const widths = columns.map((col, i) => {
+      const vals = rows.map(r => String(r[col] ?? 'NULL'));
+      return Math.max(col.length, ...vals.map(v => v.length));
+    });
+    const sep = '+' + widths.map(w => '-'.repeat(w + 2)).join('+') + '+';
+    const header = '|' + columns.map((c, i) => ` ${c.padEnd(widths[i])} `).join('|') + '|';
+    const body = rows.map(r =>
+      '|' + columns.map((c, i) => ` ${String(r[c] ?? 'NULL').padEnd(widths[i])} `).join('|') + '|'
+    );
+    return [sep, header, sep, ...body, sep, `${rows.length} row${rows.length !== 1 ? 's' : ''} in set`].join('\r\n');
+  }, []);
+
+  const executeViaAPI = useCallback(async (query, term) => {
+    try {
+      const res = await fetch('/api/shell', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, database: databaseName }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        term.write(`\r\n\x1b[31mERROR: ${data.error}\x1b[0m\r\n`);
+        if (onQueryError) onQueryError(data.error);
+      } else {
+        const table = formatTable(data.columns, data.rows);
+        term.write(`\r\n${table}\r\n`);
+        if (onQueryResult) onQueryResult(data);
+      }
+    } catch (err) {
+      term.write(`\r\n\x1b[31mERROR: ${err.message}\x1b[0m\r\n`);
+    }
+    term.write(`\r\nmysql> `);
+  }, [databaseName, formatTable, onQueryResult, onQueryError]);
+
+  const initAPIMode = useCallback((term) => {
+    modeRef.current = 'api';
+    setIsConnected(true);
+    term.write('\x1b[38;2;25;170;89m[Connected to SQL shell (HTTP mode)]\x1b[0m\r\n');
+    term.write(`\x1b[38;2;148;163;184mDatabase: ${databaseName} | Read-only mode\x1b[0m\r\n\r\n`);
+    term.write('mysql> ');
+
+    term.onData((data) => {
+      if (modeRef.current !== 'api') return;
+
+      if (data === '\r') {
+        const query = inputBufferRef.current.trim();
+        inputBufferRef.current = '';
+        term.write('\r\n');
+        if (query) {
+          executeViaAPI(query, term);
+        } else {
+          term.write('mysql> ');
+        }
+      } else if (data === '\x7f' || data === '\b') {
+        if (inputBufferRef.current.length > 0) {
+          inputBufferRef.current = inputBufferRef.current.slice(0, -1);
+          term.write('\b \b');
+        }
+      } else if (data === '\x03') {
+        inputBufferRef.current = '';
+        term.write('^C\r\nmysql> ');
+      } else if (data >= ' ') {
+        inputBufferRef.current += data;
+        term.write(data);
+      }
+    });
+  }, [databaseName, executeViaAPI]);
+
+  const initializeWebSocket = useCallback((term, dbName) => {
+    try {
+      const wsUrl = process.env.NEXT_PUBLIC_SHELL_WS_URL || `ws://localhost:3002`;
+      const socket = new WebSocket(`${wsUrl}?database=${dbName}`);
+      socketRef.current = socket;
+
+      const wsTimeout = setTimeout(() => {
+        if (socket.readyState !== WebSocket.OPEN) {
+          socket.close();
+          console.log('WebSocket timeout, falling back to API mode');
+          initAPIMode(term);
+        }
+      }, 3000);
+
+      socket.onopen = () => {
+        clearTimeout(wsTimeout);
+        modeRef.current = 'ws';
+        setIsConnected(true);
+        term.write('\r\n\x1b[38;2;25;170;89m[Connected to SQL shell]\x1b[0m\r\n');
+        term.write('\x1b[38;2;148;163;184mType your SQL queries below...\x1b[0m\r\n\r\n');
+      };
+
+      socket.onmessage = (event) => {
+        term.write(event.data);
+      };
+
+      socket.onclose = () => {
+        if (modeRef.current === 'ws') {
+          setIsConnected(false);
+          term.write('\r\n\x1b[38;2;248;113;113m[Connection closed]\x1b[0m\r\n');
+        }
+      };
+
+      socket.onerror = () => {
+        clearTimeout(wsTimeout);
+        if (modeRef.current !== 'api') {
+          console.log('WebSocket error, falling back to API mode');
+          initAPIMode(term);
+        }
+      };
+
+      term.onData((data) => {
+        if (modeRef.current === 'ws' && socket.readyState === WebSocket.OPEN) {
+          socket.send(data);
+        }
+      });
+    } catch (error) {
+      console.log('WebSocket unavailable, using API mode');
+      initAPIMode(term);
+    }
+  }, [initAPIMode]);
 
   useEffect(() => {
     if (!terminalRef.current) return;
 
-    // Create terminal instance with QueryQuest theme
     const term = new Terminal({
       cursorBlink: true,
-      fontSize: fontSize,
+      fontSize,
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      theme: {
-        background: '#030914',   // Navy dark (matches design system)
-        foreground: '#e2e8f0',   // Light gray text
-        cursor: '#19aa59',       // Green accent cursor
-        cursorAccent: '#030914', // Cursor text color
-        selection: '#19aa5940', // Green selection with transparency
-        black: '#0a1628',        // Darker navy for black
-        red: '#f87171',          // Red for errors
-        green: '#19aa59',        // Primary green accent
-        yellow: '#fbbf24',       // Amber for warnings
-        blue: '#60a5fa',         // Blue
-        magenta: '#a78bfa',      // Violet
-        cyan: '#22d3ee',         // Cyan
-        white: '#e2e8f0',        // Light gray
-        brightBlack: '#1e293b',  // Brighter navy
-        brightRed: '#fca5a5',    // Bright red
-        brightGreen: '#4ade80',  // Bright green
-        brightYellow: '#fcd34d', // Bright yellow
-        brightBlue: '#93c5fd',   // Bright blue
-        brightMagenta: '#c4b5fd', // Bright violet
-        brightCyan: '#67e8f9',   // Bright cyan
-        brightWhite: '#f8fafc'   // White
-      },
+      theme: THEME,
       cols: 80,
       rows: 24,
       scrollback: 1000,
       tabStopWidth: 4
     });
 
-    // Add addons
     const fitAddon = new FitAddon();
     const webLinksAddon = new WebLinksAddon();
-    
     term.loadAddon(fitAddon);
     term.loadAddon(webLinksAddon);
-    
-    // Store references
+
     terminalInstanceRef.current = term;
     fitAddonRef.current = fitAddon;
 
-    // Open terminal in the DOM element
     term.open(terminalRef.current);
-    
-    // Fit terminal to container after a brief delay to ensure DOM is ready
+
     setTimeout(() => {
       try {
-        if (fitAddon && term.element && terminalRef.current) {
-          fitAddon.fit();
-        }
-      } catch (error) {
-        console.error('Error fitting terminal on initialization:', error);
-      }
+        if (fitAddon && term.element && terminalRef.current) fitAddon.fit();
+      } catch (e) {}
     }, 100);
 
-    // Handle resize with proper checks
     const handleResize = () => {
-      if (fitAddon && term && term.element && term.element.parentElement) {
-        try {
-          // Check if terminal has dimensions before fitting
-          if (term.cols > 0 && term.rows > 0) {
-            fitAddon.fit();
-          }
-        } catch (error) {
-          console.error('Error fitting terminal on resize:', error);
-        }
+      if (fitAddon && term?.element?.parentElement) {
+        try { if (term.cols > 0 && term.rows > 0) fitAddon.fit(); } catch (e) {}
       }
     };
-    
     window.addEventListener('resize', handleResize);
 
-    // Initialize WebSocket connection
     initializeWebSocket(term, databaseName);
 
-    // Handle keyboard shortcuts for zoom
-    term.onKey(({ key, domEvent }) => {
-      if (domEvent.ctrlKey || domEvent.metaKey) {
-        switch (key) {
-          case '+':
-          case '=':
-            domEvent.preventDefault();
-            handleZoom('in');
-            break;
-          case '-':
-            domEvent.preventDefault();
-            handleZoom('out');
-            break;
-          case '0':
-            domEvent.preventDefault();
-            handleZoom('reset');
-            break;
-        }
-      }
-    });
-
-    // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
-      if (socketRef.current) {
-        socketRef.current.close();
-        socketRef.current = null;
-      }
-      if (term) {
-        term.dispose();
-      }
+      if (socketRef.current) { socketRef.current.close(); socketRef.current = null; }
+      if (term) term.dispose();
     };
   }, []);
 
-  const initializeWebSocket = (term, dbName) => {
-    try {
-      // Connect to WebSocket following tutorial pattern
-      const socket = new WebSocket(`ws://localhost:3002?database=${dbName}`);
-      socketRef.current = socket;
-
-      socket.onopen = () => {
-        console.log('Connected to shell server');
-        setIsConnected(true);
-        term.write('\r\n\x1b[38;2;25;170;89m[Connected to SQL shell]\x1b[0m\r\n');
-        term.write('\x1b[38;2;148;163;184mType your SQL queries below...\x1b[0m\r\n\r\n');
-      };
-
-      // Handle messages from server - following tutorial approach
-      socket.onmessage = (event) => {
-        term.write(event.data);
-      };
-
-      socket.onclose = (event) => {
-        console.log('[Shell connection closed]');
-        setIsConnected(false);
-        term.write('\r\n\x1b[38;2;248;113;113m[Connection closed]\x1b[0m\r\n');
-
-        // Simple reconnection logic
-        setTimeout(() => {
-          if (!isConnected) {
-            term.write('\x1b[38;2;251;191;36m[Reconnecting...]\x1b[0m\r\n');
-            initializeWebSocket(term, dbName);
-          }
-        }, 3000);
-      };
-
-      socket.onerror = (error) => {
-        console.log('[Shell server connection failed]');
-        setIsConnected(false);
-        term.write('\r\n\x1b[38;2;248;113;113m[Connection failed]\x1b[0m\r\n');
-        term.write('\x1b[38;2;148;163;184mMake sure shell server is running: \x1b[38;2;25;170;89mnpm run shell\x1b[0m\r\n');
-      };
-
-      // Handle user input - following tutorial approach
-      term.onData((data) => {
-        if (socket.readyState === WebSocket.OPEN) {
-          socket.send(data);
-        }
-      });
-
-    } catch (error) {
-      console.error('Error creating WebSocket connection:', error);
-      term.write('\r\n\x1b[31m[Shell connection error]\x1b[0m\r\n');
-    }
-  };
-
   const handleZoom = (action) => {
     let newSize = fontSize;
-    
-    switch (action) {
-      case 'in':
-        newSize = Math.min(fontSize + 2, 32);
-        break;
-      case 'out':
-        newSize = Math.max(fontSize - 2, 8);
-        break;
-      case 'reset':
-        newSize = 14;
-        break;
-    }
-    
+    if (action === 'in') newSize = Math.min(fontSize + 2, 32);
+    else if (action === 'out') newSize = Math.max(fontSize - 2, 8);
+    else newSize = 14;
+
     if (newSize !== fontSize && terminalInstanceRef.current) {
       setFontSize(newSize);
       terminalInstanceRef.current.options.fontSize = newSize;
-      
-      // Refit terminal after font change
       setTimeout(() => {
-        if (fitAddonRef.current && terminalInstanceRef.current && terminalInstanceRef.current.element) {
-          try {
-            // Check if terminal has valid dimensions
-            if (terminalInstanceRef.current.cols > 0 && terminalInstanceRef.current.rows > 0) {
-              fitAddonRef.current.fit();
-            }
-          } catch (error) {
-            console.error('Error refitting terminal:', error);
-          }
-        }
+        try { fitAddonRef.current?.fit(); } catch (e) {}
       }, 50);
     }
   };
 
   return (
     <div className={`relative ${className}`}>
-      {/* Connection status indicator */}
       <div className="absolute top-3 right-3 z-10">
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium backdrop-blur-sm ${
           isConnected
@@ -236,11 +241,10 @@ const XTerminal = ({
           <div className={`w-2 h-2 rounded-full ${
             isConnected ? 'bg-[#19aa59] animate-pulse' : 'bg-red-500'
           }`}></div>
-          {isConnected ? 'Connected' : 'Disconnected'}
+          {isConnected ? 'Connected' : 'Connecting...'}
         </div>
       </div>
 
-      {/* Terminal container */}
       <div
         ref={terminalRef}
         className="w-full h-full overflow-hidden"
@@ -252,32 +256,13 @@ const XTerminal = ({
         }}
       />
 
-      {/* Zoom controls */}
       <div className="absolute bottom-3 right-3 z-10">
         <div className="flex items-center gap-1 bg-[#0a1628]/80 backdrop-blur-sm rounded-lg px-3 py-1.5 border border-gray-700/50">
-          <button
-            onClick={() => handleZoom('out')}
-            className="text-gray-400 hover:text-[#19aa59] text-sm px-1.5 transition-colors"
-            title="Zoom out (Ctrl/Cmd + -)"
-          >
-            −
-          </button>
+          <button onClick={() => handleZoom('out')} className="text-gray-400 hover:text-[#19aa59] text-sm px-1.5 transition-colors" title="Zoom out">−</button>
           <span className="text-gray-500 text-xs px-2 min-w-[40px] text-center">{fontSize}px</span>
-          <button
-            onClick={() => handleZoom('in')}
-            className="text-gray-400 hover:text-[#19aa59] text-sm px-1.5 transition-colors"
-            title="Zoom in (Ctrl/Cmd + +)"
-          >
-            +
-          </button>
+          <button onClick={() => handleZoom('in')} className="text-gray-400 hover:text-[#19aa59] text-sm px-1.5 transition-colors" title="Zoom in">+</button>
           <div className="w-px h-4 bg-gray-700 mx-1"></div>
-          <button
-            onClick={() => handleZoom('reset')}
-            className="text-gray-300 hover:text-[#19aa59] text-xs px-2 py-0.5 rounded bg-gray-700/50 hover:bg-[#19aa59]/10 transition-all"
-            title="Reset zoom (Ctrl/Cmd + 0)"
-          >
-            Reset
-          </button>
+          <button onClick={() => handleZoom('reset')} className="text-gray-300 hover:text-[#19aa59] text-xs px-2 py-0.5 rounded bg-gray-700/50 hover:bg-[#19aa59]/10 transition-all" title="Reset zoom">Reset</button>
         </div>
       </div>
     </div>
