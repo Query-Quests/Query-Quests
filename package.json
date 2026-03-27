@@ -1,0 +1,12 @@
+{
+  "name": "query-quest",
+  "private": true,
+  "scripts": {
+    "build": "cd src && npx prisma generate && npm run build",
+    "start": "cd src && npm start",
+    "install": "cd src && npm install --legacy-peer-deps"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
