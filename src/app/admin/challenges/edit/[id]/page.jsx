@@ -8,30 +8,38 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft,
+  ArrowRight,
   Save,
   X,
   Database,
   Target,
   HelpCircle,
   Code,
-  School,
-  Star
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useUserRole } from "@/hooks/useUserRole";
+import { ChallengeDifficultyBadge } from "@/components/challenges";
+
+const TABS = ["details", "solution", "settings"];
 
 export default function EditChallenge() {
   const router = useRouter();
+  const { user } = useUserRole();
   const params = useParams();
   const challengeId = params.id;
 
   const [institutions, setInstitutions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingChallenge, setIsLoadingChallenge] = useState(true);
+  const [activeTab, setActiveTab] = useState("details");
   const [formData, setFormData] = useState({
+    name: "",
     statement: "",
     help: "",
     solution: "",
@@ -39,11 +47,22 @@ export default function EditChallenge() {
     initial_score: "100",
     institution_id: "",
   });
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     fetchInstitutions();
     fetchChallenge();
   }, [challengeId]);
+
+  // Ensure teachers can only edit challenges from their institution
+  useEffect(() => {
+    if (user && user.isTeacher && !user.isAdmin && user.institution_id && formData.institution_id) {
+      if (formData.institution_id !== user.institution_id.toString() && formData.institution_id !== "none" && formData.institution_id !== "") {
+        toast.error("You can only edit challenges from your institution");
+        router.push("/admin/challenges");
+      }
+    }
+  }, [user, formData.institution_id, router]);
 
   const fetchChallenge = async () => {
     try {
@@ -53,6 +72,7 @@ export default function EditChallenge() {
       if (response.ok) {
         const challengeData = await response.json();
         setFormData({
+          name: challengeData.name || "",
           statement: challengeData.statement || "",
           help: challengeData.help || "",
           solution: challengeData.solution || "",
@@ -86,11 +106,86 @@ export default function EditChallenge() {
     }
   };
 
+  const validateTab = (tab) => {
+    const newErrors = {};
+
+    if (tab === "details") {
+      if (!formData.name.trim()) {
+        newErrors.name = "Challenge name is required";
+      }
+      if (!formData.statement.trim()) {
+        newErrors.statement = "Challenge statement is required";
+      }
+    }
+
+    if (tab === "solution") {
+      if (!formData.solution.trim()) {
+        newErrors.solution = "Solution is required";
+      }
+    }
+
+    setErrors(prev => ({ ...prev, ...newErrors }));
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateAll = () => {
+    const newErrors = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = "Challenge name is required";
+    }
+    if (!formData.statement.trim()) {
+      newErrors.statement = "Challenge statement is required";
+    }
+    if (!formData.solution.trim()) {
+      newErrors.solution = "Solution is required";
+    }
+    if (!formData.initial_score || parseInt(formData.initial_score) < 1) {
+      newErrors.initial_score = "Initial score must be at least 1";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const goToNextTab = () => {
+    const currentIndex = TABS.indexOf(activeTab);
+    if (validateTab(activeTab) && currentIndex < TABS.length - 1) {
+      setActiveTab(TABS[currentIndex + 1]);
+    }
+  };
+
+  const goToPrevTab = () => {
+    const currentIndex = TABS.indexOf(activeTab);
+    if (currentIndex > 0) {
+      setActiveTab(TABS[currentIndex - 1]);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.statement.trim() || !formData.solution.trim()) {
+    if (!validateAll()) {
+      if (errors.name || errors.statement) {
+        setActiveTab("details");
+      } else if (errors.solution) {
+        setActiveTab("solution");
+      }
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    const userData = localStorage.getItem("user");
+    if (!userData) {
+      toast.error("User not authenticated");
+      return;
+    }
+
+    let currentUser;
+    try {
+      currentUser = JSON.parse(userData);
+    } catch (error) {
+      toast.error("Invalid user session");
       return;
     }
 
@@ -100,11 +195,10 @@ export default function EditChallenge() {
         ...formData,
         level: parseInt(formData.level),
         initial_score: parseInt(formData.initial_score),
-        // Map "none" or empty string to null for the DB
         institution_id: !formData.institution_id || formData.institution_id === "none"
           ? null
           : formData.institution_id,
-        updater_id: "545c289e-c1f9-4798-9090-e74e65f116f4", // Admin user ID from create-admin script
+        updater_id: currentUser.id,
       };
 
       const response = await fetch(`/api/challenges/${challengeId}`, {
@@ -134,280 +228,368 @@ export default function EditChallenge() {
     router.push("/admin/challenges");
   };
 
-  const getLevelDescription = (level) => {
-    const descriptions = {
-      1: "Beginner - Basic SQL concepts",
-      2: "Easy - Simple queries and joins",
-      3: "Medium - Complex queries and aggregations",
-      4: "Hard - Advanced SQL features",
-      5: "Expert - Complex database operations"
-    };
-    return descriptions[level] || descriptions[1];
+  const updateFormData = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
   };
 
-  const getLevelColor = (level) => {
-    const colors = {
-      1: "bg-green-100 text-green-800",
-      2: "bg-yellow-100 text-yellow-800",
-      3: "bg-orange-100 text-orange-800",
-      4: "bg-red-100 text-red-800",
-      5: "bg-purple-100 text-purple-800"
-    };
-    return colors[level] || colors[1];
+  const isTabComplete = (tab) => {
+    if (tab === "details") {
+      return formData.name.trim() && formData.statement.trim();
+    }
+    if (tab === "solution") {
+      return formData.solution.trim();
+    }
+    return true;
+  };
+
+  const getInstitutionName = () => {
+    if (!formData.institution_id || formData.institution_id === "none") {
+      return "Platform-wide";
+    }
+    return institutions.find(i => i.id.toString() === formData.institution_id)?.name || "Unknown";
   };
 
   if (isLoadingChallenge) {
     return (
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p>Loading challenge...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading challenge...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
+    <div className="space-y-6 w-full max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center space-x-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Edit Challenge</h1>
-            <p className="text-sm text-muted-foreground">
-              Modify challenge details and settings
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 sm:space-x-2">
-          <Button
-            variant="outline"
-            onClick={handleCancel}
-            disabled={isLoading}
-            className="hover:bg-gray-50 hover:border-gray-300 transition-colors duration-200 text-sm"
-          >
-            <X className="mr-1 sm:mr-2 h-4 w-4" />
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isLoading}
-            className="hover:bg-blue-600 hover:shadow-sm transition-all duration-200 text-sm"
-          >
-            <Save className="mr-1 sm:mr-2 h-4 w-4" />
-            {isLoading ? "Updating..." : "Update Challenge"}
-          </Button>
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleCancel}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span className="hidden sm:inline">Back</span>
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Edit Challenge</h1>
+          <p className="text-muted-foreground">
+            Modify challenge details and settings
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        {/* Main Form */}
-        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-          {/* Challenge Details */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2 text-lg sm:text-xl">
-                <Database className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span>Challenge Details</span>
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Define the challenge statement and solution
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 sm:space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="statement" className="text-sm font-medium">
-                  Challenge Statement *
-                </Label>
-                <Textarea
-                  id="statement"
-                  placeholder="Describe the SQL challenge that users need to solve..."
-                  value={formData.statement}
-                  onChange={(e) => setFormData({ ...formData, statement: e.target.value })}
-                  className="min-h-[120px] hover:border-blue-300 focus:border-blue-400 transition-colors duration-200"
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  Clearly explain what the user needs to accomplish
-                </p>
-              </div>
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="details" className="flex items-center gap-2">
+              {isTabComplete("details") ? (
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+              ) : (
+                <Database className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline">Details</span>
+            </TabsTrigger>
+            <TabsTrigger value="solution" className="flex items-center gap-2">
+              {isTabComplete("solution") ? (
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+              ) : (
+                <Code className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline">Solution</span>
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              <span className="hidden sm:inline">Settings</span>
+            </TabsTrigger>
+          </TabsList>
 
-              <div className="space-y-2">
-                <Label htmlFor="help" className="text-sm font-medium">
-                  Help Text
-                </Label>
-                <Textarea
-                  id="help"
-                  placeholder="Optional hints or guidance for users..."
-                  value={formData.help}
-                  onChange={(e) => setFormData({ ...formData, help: e.target.value })}
-                  className="min-h-[80px] hover:border-blue-300 focus:border-blue-400 transition-colors duration-200"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Provide helpful hints without giving away the solution
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="solution" className="text-sm font-medium">
-                  Solution *
-                </Label>
-                <Textarea
-                  id="solution"
-                  placeholder="The correct SQL query that solves the challenge..."
-                  value={formData.solution}
-                  onChange={(e) => setFormData({ ...formData, solution: e.target.value })}
-                  className="min-h-[120px] font-mono text-sm hover:border-blue-300 focus:border-blue-400 transition-colors duration-200"
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  The exact SQL query that should be the correct answer
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Scoring Configuration */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2 text-lg sm:text-xl">
-                <Target className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span>Scoring Configuration</span>
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Configure how points are awarded for this challenge
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 sm:space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="initial_score" className="text-sm font-medium">
-                  Initial Score *
-                </Label>
-                <Input
-                  id="initial_score"
-                  type="number"
-                  placeholder="100"
-                  value={formData.initial_score}
-                  onChange={(e) => setFormData({ ...formData, initial_score: e.target.value })}
-                  min="1"
-                  required
-                  className="hover:border-blue-300 focus:border-blue-400 transition-colors duration-200"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Starting points for this challenge. Score decreases as more people solve it.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-4 sm:space-y-6">
-          {/* Challenge Settings */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2 text-lg sm:text-xl">
-                <Star className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span>Challenge Settings</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 sm:space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="level" className="text-sm font-medium">
-                  Difficulty Level *
-                </Label>
-                <Select
-                  value={formData.level}
-                  onValueChange={(value) => setFormData({ ...formData, level: value })}
-                >
-                  <SelectTrigger className="hover:border-blue-300 focus:border-blue-400 transition-colors duration-200">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Level 1 - Beginner</SelectItem>
-                    <SelectItem value="2">Level 2 - Easy</SelectItem>
-                    <SelectItem value="3">Level 3 - Medium</SelectItem>
-                    <SelectItem value="4">Level 4 - Hard</SelectItem>
-                    <SelectItem value="5">Level 5 - Expert</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="mt-2">
-                  <Badge className={getLevelColor(formData.level)}>
-                    {getLevelDescription(formData.level)}
-                  </Badge>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <Label htmlFor="institution" className="text-sm font-medium">
-                  Institution
-                </Label>
-                <Select
-                  value={formData.institution_id}
-                  onValueChange={(value) => setFormData({ ...formData, institution_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select institution (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Institution</SelectItem>
-                    {institutions.map((institution) => (
-                      <SelectItem key={institution.id} value={institution.id.toString()}>
-                        {institution.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Leave empty for platform-wide challenges
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Preview */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2 text-lg sm:text-xl">
-                <HelpCircle className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span>Challenge Preview</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 sm:space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <span className="text-sm font-medium">Level:</span>
-                <Badge className={getLevelColor(formData.level)}>
-                  Level {formData.level}
-                </Badge>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <span className="text-sm font-medium">Points:</span>
-                <span className="text-sm">{formData.score} pts</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <span className="text-sm font-medium">Institution:</span>
-                <span className="text-sm text-muted-foreground break-words">
-                  {(!formData.institution_id || formData.institution_id === "none")
-                    ? 'Platform-wide'
-                    : (institutions.find(i => i.id.toString() === formData.institution_id)?.name || 'Unknown')}
-                </span>
-              </div>
-              {formData.statement && (
-                <div className="pt-2 border-t">
-                  <p className="text-xs font-medium mb-2">Statement Preview:</p>
-                  <p className="text-xs text-muted-foreground line-clamp-2 sm:line-clamp-3 break-words">
-                    {formData.statement}
+          {/* Details Tab */}
+          <TabsContent value="details" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  Challenge Details
+                </CardTitle>
+                <CardDescription>
+                  Define the challenge name, statement, and optional help text
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="flex items-center gap-1">
+                    Challenge Name
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="name"
+                    placeholder="e.g., Select All Customers"
+                    value={formData.name}
+                    onChange={(e) => updateFormData("name", e.target.value)}
+                    className={errors.name ? "border-red-500" : ""}
+                  />
+                  {errors.name && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.name}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    A clear, concise name that describes the challenge
                   </p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+
+                <div className="space-y-2">
+                  <Label htmlFor="statement" className="flex items-center gap-1">
+                    Challenge Statement
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    id="statement"
+                    placeholder="Write a SQL query that retrieves all customers from the database..."
+                    value={formData.statement}
+                    onChange={(e) => updateFormData("statement", e.target.value)}
+                    className={`min-h-[150px] ${errors.statement ? "border-red-500" : ""}`}
+                  />
+                  {errors.statement && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.statement}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Clearly explain what the user needs to accomplish
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="help" className="flex items-center gap-1">
+                    <HelpCircle className="h-4 w-4" />
+                    Help Text (Optional)
+                  </Label>
+                  <Textarea
+                    id="help"
+                    placeholder="Hint: Consider using the SELECT statement with the FROM clause..."
+                    value={formData.help}
+                    onChange={(e) => updateFormData("help", e.target.value)}
+                    className="min-h-[100px]"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Provide helpful hints without giving away the solution
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Solution Tab */}
+          <TabsContent value="solution" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Code className="h-5 w-5" />
+                  SQL Solution
+                </CardTitle>
+                <CardDescription>
+                  Provide the correct SQL query that solves the challenge
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="solution" className="flex items-center gap-1">
+                    Solution Query
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    id="solution"
+                    placeholder="SELECT * FROM customers;"
+                    value={formData.solution}
+                    onChange={(e) => updateFormData("solution", e.target.value)}
+                    className={`min-h-[200px] font-mono text-sm ${errors.solution ? "border-red-500" : ""}`}
+                  />
+                  {errors.solution && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.solution}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    The exact SQL query that should be the correct answer
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="mt-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5" />
+                    Difficulty & Scoring
+                  </CardTitle>
+                  <CardDescription>
+                    Configure the challenge difficulty and point value
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="level">Difficulty Level</Label>
+                    <Select
+                      value={formData.level}
+                      onValueChange={(value) => updateFormData("level", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Level 1 - Beginner</SelectItem>
+                        <SelectItem value="2">Level 2 - Easy</SelectItem>
+                        <SelectItem value="3">Level 3 - Medium</SelectItem>
+                        <SelectItem value="4">Level 4 - Hard</SelectItem>
+                        <SelectItem value="5">Level 5 - Expert</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="mt-2">
+                      <ChallengeDifficultyBadge level={parseInt(formData.level)} />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2">
+                    <Label htmlFor="initial_score" className="flex items-center gap-1">
+                      Initial Score
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="initial_score"
+                      type="number"
+                      min="1"
+                      value={formData.initial_score}
+                      onChange={(e) => updateFormData("initial_score", e.target.value)}
+                      className={errors.initial_score ? "border-red-500" : ""}
+                    />
+                    {errors.initial_score && (
+                      <p className="text-sm text-red-500 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {errors.initial_score}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Starting points for this challenge. Score decreases as more people solve it.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Institution & Preview</CardTitle>
+                  <CardDescription>
+                    Assign to an institution or make platform-wide
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="institution">Institution</Label>
+                    {user && user.isTeacher && !user.isAdmin && user.institution_id ? (
+                      <div className="px-3 py-2 border border-input bg-muted rounded-md text-sm">
+                        {user.institution?.name || institutions.find(i => i.id === user.institution_id)?.name || "Your Institution"}
+                        <span className="ml-2 text-xs text-muted-foreground">(Your Institution)</span>
+                      </div>
+                    ) : (
+                      <Select
+                        value={formData.institution_id}
+                        onValueChange={(value) => updateFormData("institution_id", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select institution (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No Institution (Platform-wide)</SelectItem>
+                          {institutions.map((institution) => (
+                            <SelectItem key={institution.id} value={institution.id.toString()}>
+                              {institution.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  {/* Preview */}
+                  <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
+                    <h4 className="font-medium text-sm">Challenge Preview</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Difficulty:</span>
+                        <ChallengeDifficultyBadge level={parseInt(formData.level)} compact />
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Points:</span>
+                        <span className="font-medium">{formData.initial_score} pts</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Institution:</span>
+                        <span className="font-medium truncate max-w-[150px]">
+                          {getInstitutionName()}
+                        </span>
+                      </div>
+                      {formData.name && (
+                        <div className="pt-2 border-t">
+                          <span className="text-muted-foreground">Name:</span>
+                          <p className="font-medium truncate">{formData.name}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Navigation & Actions */}
+        <div className="flex flex-col sm:flex-row justify-between gap-4 pt-4 border-t">
+          <div className="flex gap-2">
+            {activeTab !== "details" && (
+              <Button type="button" variant="outline" onClick={goToPrevTab}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Previous
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={handleCancel} disabled={isLoading}>
+              <X className="mr-2 h-4 w-4" />
+              Cancel
+            </Button>
+            {activeTab !== "settings" ? (
+              <Button type="button" onClick={goToNextTab}>
+                Next
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button type="submit" disabled={isLoading}>
+                <Save className="mr-2 h-4 w-4" />
+                {isLoading ? "Updating..." : "Update Challenge"}
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

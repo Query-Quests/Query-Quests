@@ -1,5 +1,6 @@
 const WebSocket = require('ws');
 const pty = require('node-pty');
+const url = require('url');
 
 class ShellSocketServer {
   constructor(port = 3002) {
@@ -11,9 +12,9 @@ class ShellSocketServer {
   }
 
   start() {
-    this.wss = new WebSocket.Server({ 
+    this.wss = new WebSocket.Server({
       port: this.port,
-      perMessageDeflate: false 
+      perMessageDeflate: false
     });
 
     console.log(`Shell WebSocket server running on port ${this.port}`);
@@ -22,8 +23,15 @@ class ShellSocketServer {
       const clientId = this.generateClientId();
       console.log(`[${clientId}] Shell client connected from ${req.socket.remoteAddress}`);
 
-      // Setup shell session immediately (auto-login as root)
-      this.setupShellSession(ws, clientId);
+      // Parse query parameters for database name
+      const queryParams = url.parse(req.url, true).query;
+      const databaseName = queryParams.database || 'practice';
+      const useReadonly = queryParams.readonly !== 'false';
+
+      console.log(`[${clientId}] Connecting to database: ${databaseName}, readonly: ${useReadonly}`);
+
+      // Setup shell session with database context
+      this.setupShellSession(ws, clientId, databaseName, useReadonly);
 
       // Handle disconnection
       ws.on('close', () => {
@@ -51,7 +59,7 @@ class ShellSocketServer {
     });
   }
 
-  setupShellSession(ws, clientId) {
+  setupShellSession(ws, clientId, databaseName, useReadonly) {
     let ptyProcess;
 
     if (this.sharedMode && this.sharedShell) {
@@ -60,8 +68,8 @@ class ShellSocketServer {
       console.log(`[${clientId}] Using shared shell session`);
     } else {
       // Create individual shell session
-      ptyProcess = this.spawnShell(clientId);
-      
+      ptyProcess = this.spawnShell(clientId, databaseName, useReadonly);
+
       if (!this.sharedMode) {
         this.sessions.set(clientId, ptyProcess);
       } else {
@@ -74,10 +82,17 @@ class ShellSocketServer {
       try {
         const command = rawCommand.toString();
         console.log(`[${clientId}] Received command:`, command.replace(/\r?\n/g, '\\n'));
-        
+
         // Process and send command to shell
-        const processedCommand = this.commandProcessor(command);
-        ptyProcess.write(processedCommand);
+        const processedCommand = this.commandProcessor(command, useReadonly);
+
+        if (processedCommand === null) {
+          // Command was blocked
+          ws.send('\r\n\x1b[38;2;248;113;113m[Error] This command is not allowed in read-only mode\x1b[0m\r\n');
+          ws.send('mysql> ');
+        } else {
+          ptyProcess.write(processedCommand);
+        }
       } catch (error) {
         console.error(`[${clientId}] Error processing command:`, error);
         ws.send(`Error: ${error.message}\r\n`);
@@ -97,7 +112,7 @@ class ShellSocketServer {
     });
 
     // MySQL connection is direct - no separate auto-connect needed
-    console.log(`[${clientId}] MySQL connection established directly via Docker exec`);
+    console.log(`[${clientId}] MySQL connection established directly via Docker exec to database: ${databaseName}`);
 
     // Handle shell exit
     ptyProcess.onExit(({ exitCode, signal }) => {
@@ -110,17 +125,31 @@ class ShellSocketServer {
 
     // Send initial welcome message
     if (ws.readyState === WebSocket.OPEN) {
-      const promptMsg = `💡 Ready for SQL commands!\r\n\r\n`;
+      const readonlyMsg = useReadonly ? ' (read-only)' : '';
+      const promptMsg = `💡 Connected to database: ${databaseName}${readonlyMsg}\r\n\r\n`;
       ws.send(promptMsg);
     }
   }
 
-  spawnShell(clientId) {
+  spawnShell(clientId, databaseName = 'practice', useReadonly = true) {
     // Connect directly to MySQL in Docker container
     const shell = 'docker';
-    const args = ['exec', '-it', 'query-quest-mysql-client', 'mysql', '-h', 'mysql', '-u', 'root', '-ppassword', 'queryquest'];
 
-    console.log(`[${clientId}] Spawning Docker MySQL connection: ${shell} ${args.join(' ')}`);
+    // Use readonly user for students, admin for teachers
+    const user = useReadonly ? 'student_readonly' : 'db_admin';
+    const password = useReadonly ? 'student_readonly_pass' : 'db_admin_pass';
+
+    const args = [
+      'exec', '-it',
+      'query-quest-mysql-client',
+      'mysql',
+      '-h', 'mysql-challenges',
+      '-u', user,
+      `-p${password}`,
+      databaseName
+    ];
+
+    console.log(`[${clientId}] Spawning Docker MySQL connection: ${shell} ${args.slice(0, -1).join(' ')} -p***`);
 
     const ptyProcess = pty.spawn(shell, args, {
       name: 'xterm-color',
@@ -144,11 +173,38 @@ class ShellSocketServer {
     return ptyProcess;
   }
 
+  commandProcessor(command, useReadonly = true) {
+    if (!useReadonly) {
+      // Admin mode - allow all commands
+      return command;
+    }
 
+    // Read-only mode - block dangerous commands
+    const blockedPatterns = [
+      /\b(INSERT)\s+INTO\b/i,
+      /\b(UPDATE)\s+\w+\s+SET\b/i,
+      /\b(DELETE)\s+FROM\b/i,
+      /\b(DROP)\s+(TABLE|DATABASE|INDEX|VIEW)\b/i,
+      /\b(TRUNCATE)\s+TABLE\b/i,
+      /\b(ALTER)\s+(TABLE|DATABASE)\b/i,
+      /\b(CREATE)\s+(TABLE|DATABASE|INDEX|VIEW|USER)\b/i,
+      /\b(GRANT)\b/i,
+      /\b(REVOKE)\b/i,
+      /\bINTO\s+OUTFILE\b/i,
+      /\bINTO\s+DUMPFILE\b/i,
+      /\bLOAD\s+DATA\b/i,
+      /\bSOURCE\b/i,
+      /\\!/g,  // Shell escape
+      /\bUSE\s+\w+/i,  // Database switching
+    ];
 
-  commandProcessor(command) {
-    // Add any command preprocessing here
-    // For now, just pass through as-is
+    for (const pattern of blockedPatterns) {
+      if (pattern.test(command)) {
+        console.log(`Blocked command: ${command}`);
+        return null; // Block the command
+      }
+    }
+
     return command;
   }
 

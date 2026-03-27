@@ -157,6 +157,7 @@ async function main() {
   // Create sample challenges
   const challenges = [
     {
+      name: "Empleados con salario alto",
       statement: "Write a SQL query to select all employees from the 'employees' table who have a salary greater than 50000.",
       help: "Use the WHERE clause to filter records based on salary condition.",
       solution: "SELECT * FROM employees WHERE salary > 50000;",
@@ -166,6 +167,7 @@ async function main() {
       institution_id: createdInstitutions[0].id
     },
     {
+      name: "Salario medio por departamento",
       statement: "Find the average salary for each department in the 'employees' table. Group the results by department.",
       help: "Use GROUP BY to group results by department and AVG() function for average calculation.",
       solution: "SELECT department, AVG(salary) as avg_salary FROM employees GROUP BY department;",
@@ -175,6 +177,7 @@ async function main() {
       institution_id: createdInstitutions[0].id
     },
     {
+      name: "Departamentos grandes",
       statement: "Write a query to find employees who work in departments with more than 5 employees. Use a subquery.",
       help: "First find departments with >5 employees, then select employees from those departments.",
       solution: "SELECT * FROM employees WHERE department IN (SELECT department FROM employees GROUP BY department HAVING COUNT(*) > 5);",
@@ -184,6 +187,7 @@ async function main() {
       institution_id: createdInstitutions[0].id
     },
     {
+      name: "Top 3 por departamento",
       statement: "Create a query that shows the top 3 highest-paid employees from each department using window functions.",
       help: "Use ROW_NUMBER() window function partitioned by department and ordered by salary descending.",
       solution: "SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) as rn FROM employees) ranked WHERE rn <= 3;",
@@ -193,6 +197,7 @@ async function main() {
       institution_id: createdInstitutions[2].id
     },
     {
+      name: "Salarios duplicados entre departamentos",
       statement: "Write a complex query to find employees who have the same salary as at least one other employee in a different department.",
       help: "Use self-join to compare employees across different departments.",
       solution: "SELECT DISTINCT e1.* FROM employees e1 JOIN employees e2 ON e1.salary = e2.salary WHERE e1.department != e2.department;",
@@ -202,6 +207,7 @@ async function main() {
       institution_id: createdInstitutions[2].id
     },
     {
+      name: "Pedidos recientes",
       statement: "Find all customers who have placed orders in the last 30 days and calculate their total order value.",
       help: "Use DATE functions to filter recent orders and SUM() for total calculation.",
       solution: "SELECT customer_id, SUM(order_value) as total_value FROM orders WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) GROUP BY customer_id;",
@@ -211,6 +217,7 @@ async function main() {
       institution_id: createdInstitutions[1].id
     },
     {
+      name: "Productos sin pedidos",
       statement: "Create a query to identify products that have never been ordered by any customer.",
       help: "Use LEFT JOIN and check for NULL values in the orders table.",
       solution: "SELECT p.* FROM products p LEFT JOIN order_items oi ON p.product_id = oi.product_id WHERE oi.product_id IS NULL;",
@@ -220,6 +227,7 @@ async function main() {
       institution_id: createdInstitutions[3].id
     },
     {
+      name: "Mes con mayores ventas por año",
       statement: "Write a query to find the month with the highest total sales for each year in the last 5 years.",
       help: "Use window functions with PARTITION BY year and ORDER BY total_sales DESC.",
       solution: "SELECT * FROM (SELECT YEAR(order_date) as year, MONTH(order_date) as month, SUM(order_value) as total_sales, ROW_NUMBER() OVER (PARTITION BY YEAR(order_date) ORDER BY SUM(order_value) DESC) as rn FROM orders WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 5 YEAR) GROUP BY YEAR(order_date), MONTH(order_date)) ranked WHERE rn = 1;",

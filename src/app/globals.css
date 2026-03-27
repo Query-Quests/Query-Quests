@@ -16,6 +16,8 @@ body {
 
 @layer base {
   :root {
+    --accent-green: #19aa59;
+    --navy-dark: #030914;
     --background: 0 0% 100%;
     --foreground: 20 14.3% 4.1%;
     --card: 0 0% 100%;

@@ -8,11 +8,12 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 // Import xterm.js CSS
 import '@xterm/xterm/css/xterm.css';
 
-const XTerminal = ({ 
+const XTerminal = ({
   challengeId = null,
   onQueryResult = null,
   onQueryError = null,
-  className = "w-full h-full"
+  className = "w-full h-full",
+  databaseName = "practice"
 }) => {
   const terminalRef = useRef(null);
   const terminalInstanceRef = useRef(null);
@@ -24,32 +25,33 @@ const XTerminal = ({
   useEffect(() => {
     if (!terminalRef.current) return;
 
-    // Create terminal instance following the tutorial approach
+    // Create terminal instance with QueryQuest theme
     const term = new Terminal({
       cursorBlink: true,
       fontSize: fontSize,
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       theme: {
-        background: '#1e1e2e', // Catppuccin Mocha Base
-        foreground: '#cdd6f4', // Catppuccin Mocha Text
-        cursor: '#f5e0dc',     // Catppuccin Mocha Rosewater
-        selection: '#585b70',  // Catppuccin Mocha Surface2
-        black: '#45475a',      // Catppuccin Mocha Surface1
-        red: '#f38ba8',        // Catppuccin Mocha Pink
-        green: '#a6e3a1',      // Catppuccin Mocha Green
-        yellow: '#f9e2af',     // Catppuccin Mocha Yellow
-        blue: '#89b4fa',       // Catppuccin Mocha Blue
-        magenta: '#cba6f7',    // Catppuccin Mocha Mauve
-        cyan: '#94e2d5',       // Catppuccin Mocha Teal
-        white: '#bac2de',      // Catppuccin Mocha Subtext1
-        brightBlack: '#585b70', // Catppuccin Mocha Surface2
-        brightRed: '#f38ba8',   // Catppuccin Mocha Pink
-        brightGreen: '#a6e3a1', // Catppuccin Mocha Green
-        brightYellow: '#f9e2af', // Catppuccin Mocha Yellow
-        brightBlue: '#89b4fa',   // Catppuccin Mocha Blue
-        brightMagenta: '#cba6f7', // Catppuccin Mocha Mauve
-        brightCyan: '#94e2d5',    // Catppuccin Mocha Teal
-        brightWhite: '#a6adc8'    // Catppuccin Mocha Subtext0
+        background: '#030914',   // Navy dark (matches design system)
+        foreground: '#e2e8f0',   // Light gray text
+        cursor: '#19aa59',       // Green accent cursor
+        cursorAccent: '#030914', // Cursor text color
+        selection: '#19aa5940', // Green selection with transparency
+        black: '#0a1628',        // Darker navy for black
+        red: '#f87171',          // Red for errors
+        green: '#19aa59',        // Primary green accent
+        yellow: '#fbbf24',       // Amber for warnings
+        blue: '#60a5fa',         // Blue
+        magenta: '#a78bfa',      // Violet
+        cyan: '#22d3ee',         // Cyan
+        white: '#e2e8f0',        // Light gray
+        brightBlack: '#1e293b',  // Brighter navy
+        brightRed: '#fca5a5',    // Bright red
+        brightGreen: '#4ade80',  // Bright green
+        brightYellow: '#fcd34d', // Bright yellow
+        brightBlue: '#93c5fd',   // Bright blue
+        brightMagenta: '#c4b5fd', // Bright violet
+        brightCyan: '#67e8f9',   // Bright cyan
+        brightWhite: '#f8fafc'   // White
       },
       cols: 80,
       rows: 24,
@@ -99,7 +101,7 @@ const XTerminal = ({
     window.addEventListener('resize', handleResize);
 
     // Initialize WebSocket connection
-    initializeWebSocket(term);
+    initializeWebSocket(term, databaseName);
 
     // Handle keyboard shortcuts for zoom
     term.onKey(({ key, domEvent }) => {
@@ -135,16 +137,17 @@ const XTerminal = ({
     };
   }, []);
 
-  const initializeWebSocket = (term) => {
+  const initializeWebSocket = (term, dbName) => {
     try {
       // Connect to WebSocket following tutorial pattern
-      const socket = new WebSocket('ws://localhost:3002');
+      const socket = new WebSocket(`ws://localhost:3002?database=${dbName}`);
       socketRef.current = socket;
 
       socket.onopen = () => {
-        console.log('✅ Connected to shell server');
+        console.log('Connected to shell server');
         setIsConnected(true);
-        term.write('\r\n\x1b[32m✅ Connected to shell server\x1b[0m\r\n');
+        term.write('\r\n\x1b[38;2;25;170;89m[Connected to SQL shell]\x1b[0m\r\n');
+        term.write('\x1b[38;2;148;163;184mType your SQL queries below...\x1b[0m\r\n\r\n');
       };
 
       // Handle messages from server - following tutorial approach
@@ -153,24 +156,24 @@ const XTerminal = ({
       };
 
       socket.onclose = (event) => {
-        console.log('❌ Shell connection closed');
+        console.log('[Shell connection closed]');
         setIsConnected(false);
-        term.write('\r\n\x1b[31m❌ Shell connection closed\x1b[0m\r\n');
-        
+        term.write('\r\n\x1b[38;2;248;113;113m[Connection closed]\x1b[0m\r\n');
+
         // Simple reconnection logic
         setTimeout(() => {
           if (!isConnected) {
-            term.write('\x1b[33m🔄 Attempting to reconnect...\x1b[0m\r\n');
-            initializeWebSocket(term);
+            term.write('\x1b[38;2;251;191;36m[Reconnecting...]\x1b[0m\r\n');
+            initializeWebSocket(term, dbName);
           }
         }, 3000);
       };
 
       socket.onerror = (error) => {
-        console.log('Shell server connection failed');
+        console.log('[Shell server connection failed]');
         setIsConnected(false);
-        term.write('\r\n\x1b[31m❌ Failed to connect to shell server\x1b[0m\r\n');
-        term.write('\x1b[33m💡 Make sure shell server is running: npm run shell\x1b[0m\r\n');
+        term.write('\r\n\x1b[38;2;248;113;113m[Connection failed]\x1b[0m\r\n');
+        term.write('\x1b[38;2;148;163;184mMake sure shell server is running: \x1b[38;2;25;170;89mnpm run shell\x1b[0m\r\n');
       };
 
       // Handle user input - following tutorial approach
@@ -182,7 +185,7 @@ const XTerminal = ({
 
     } catch (error) {
       console.error('Error creating WebSocket connection:', error);
-      term.write('\r\n\x1b[31m❌ Shell connection error\x1b[0m\r\n');
+      term.write('\r\n\x1b[31m[Shell connection error]\x1b[0m\r\n');
     }
   };
 
@@ -224,25 +227,25 @@ const XTerminal = ({
   return (
     <div className={`relative ${className}`}>
       {/* Connection status indicator */}
-      <div className="absolute top-2 right-2 z-10">
-        <div className={`flex items-center gap-2 px-2 py-1 rounded text-xs font-medium ${
-          isConnected 
-            ? 'bg-green-100 text-green-800 border border-green-200' 
-            : 'bg-red-100 text-red-800 border border-red-200'
+      <div className="absolute top-3 right-3 z-10">
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium backdrop-blur-sm ${
+          isConnected
+            ? 'bg-[#19aa59]/20 text-[#19aa59] border border-[#19aa59]/30'
+            : 'bg-red-500/20 text-red-400 border border-red-500/30'
         }`}>
           <div className={`w-2 h-2 rounded-full ${
-            isConnected ? 'bg-green-500' : 'bg-red-500'
+            isConnected ? 'bg-[#19aa59] animate-pulse' : 'bg-red-500'
           }`}></div>
           {isConnected ? 'Connected' : 'Disconnected'}
         </div>
       </div>
 
       {/* Terminal container */}
-      <div 
-        ref={terminalRef} 
-        className="w-full h-full rounded overflow-hidden"
-        style={{ 
-          backgroundColor: '#1e1e2e', // Catppuccin Mocha Base
+      <div
+        ref={terminalRef}
+        className="w-full h-full overflow-hidden"
+        style={{
+          backgroundColor: '#030914',
           fontFamily: 'Menlo, Monaco, "Courier New", monospace',
           fontSize: `${fontSize}px`,
           minHeight: '400px'
@@ -250,29 +253,30 @@ const XTerminal = ({
       />
 
       {/* Zoom controls */}
-      <div className="absolute bottom-2 right-2 z-10">
-        <div className="flex items-center gap-1 bg-black/50 rounded px-2 py-1">
+      <div className="absolute bottom-3 right-3 z-10">
+        <div className="flex items-center gap-1 bg-[#0a1628]/80 backdrop-blur-sm rounded-lg px-3 py-1.5 border border-gray-700/50">
           <button
             onClick={() => handleZoom('out')}
-            className="text-white/70 hover:text-white text-xs px-1"
+            className="text-gray-400 hover:text-[#19aa59] text-sm px-1.5 transition-colors"
             title="Zoom out (Ctrl/Cmd + -)"
           >
-            -
+            −
           </button>
-          <span className="text-white/70 text-xs px-1">{fontSize}px</span>
+          <span className="text-gray-500 text-xs px-2 min-w-[40px] text-center">{fontSize}px</span>
           <button
             onClick={() => handleZoom('in')}
-            className="text-white/70 hover:text-white text-xs px-1"
+            className="text-gray-400 hover:text-[#19aa59] text-sm px-1.5 transition-colors"
             title="Zoom in (Ctrl/Cmd + +)"
           >
             +
           </button>
+          <div className="w-px h-4 bg-gray-700 mx-1"></div>
           <button
             onClick={() => handleZoom('reset')}
-            className="text-white/70 hover:text-white text-xs px-1 ml-1"
+            className="text-gray-300 hover:text-[#19aa59] text-xs px-2 py-0.5 rounded bg-gray-700/50 hover:bg-[#19aa59]/10 transition-all"
             title="Reset zoom (Ctrl/Cmd + 0)"
           >
-            ↺
+            Reset
           </button>
         </div>
       </div>

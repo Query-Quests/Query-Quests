@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -8,18 +8,136 @@ import {
   X, 
   Home, 
   Shield,
+  BarChart3, 
+  Users, 
+  Database, 
+  Landmark, 
+  MessageSquare, 
+  Settings
 } from "lucide-react";
 
-export default function AdminTeacherSidebar({ 
+// Navigation items configuration
+const adminNavItems = [
+  {
+    title: "Dashboard",
+    href: "/admin",
+    icon: <BarChart3 className="h-4 w-4" />,
+  },
+  {
+    title: "Users Management",
+    href: "/admin/users",
+    icon: <Users className="h-4 w-4" />,
+  },
+  {
+    title: "Challenges",
+    href: "/admin/challenges",
+    icon: <Database className="h-4 w-4" />,
+  },
+  {
+    title: "SQL Databases",
+    href: "/admin/databases",
+    icon: <Database className="h-4 w-4" />,
+  },
+  {
+    title: "Institutions",
+    href: "/admin/institutions",
+    icon: <Landmark className="h-4 w-4" />,
+  },
+  {
+    title: "Contact Requests",
+    href: "/admin/contact-requests",
+    icon: <MessageSquare className="h-4 w-4" />,
+  },
+  {
+    title: "Settings",
+    href: "/admin/settings",
+    icon: <Settings className="h-4 w-4" />,
+  },
+];
+
+const teacherNavItems = [
+  {
+    title: "Dashboard",
+    href: "/admin",
+    icon: <BarChart3 className="h-4 w-4" />,
+  },
+  {
+    title: "Users Management",
+    href: "/admin/users",
+    icon: <Users className="h-4 w-4" />,
+  },
+  {
+    title: "Challenges",
+    href: "/admin/challenges",
+    icon: <Database className="h-4 w-4" />,
+  },
+  {
+    title: "SQL Databases",
+    href: "/admin/databases",
+    icon: <Database className="h-4 w-4" />,
+  },
+  {
+    title: "Settings",
+    href: "/admin/settings",
+    icon: <Settings className="h-4 w-4" />,
+  },
+];
+
+const AdminTeacherSidebar = forwardRef(({ 
   user,
-  navItems,
   panelType = "admin", // "admin" or "teacher"
-  isSidebarOpen, 
-  setIsSidebarOpen 
-}) {
+}, ref) => {
+  
   const pathname = usePathname();
 
+  // Get initial sidebar state - always open on desktop, persistent across navigation
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const isDesktop = window.innerWidth >= 1024;
+      // On desktop, always start open and save this state
+      if (isDesktop) {
+        localStorage.setItem('admin-sidebar-open', 'true');
+        return true;
+      }
+      // On mobile, use saved state or default to closed
+      const saved = localStorage.getItem('admin-sidebar-open');
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
 
+  // Ensure sidebar stays open on desktop during navigation
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isDesktop = window.innerWidth >= 1024;
+      if (isDesktop && !isSidebarOpen) {
+        setIsSidebarOpen(true);
+        localStorage.setItem('admin-sidebar-open', 'true');
+      }
+    }
+  }, [pathname, isSidebarOpen]);
+
+  // Handle window resize to maintain appropriate sidebar state
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window !== 'undefined') {
+        const isDesktop = window.innerWidth >= 1024;
+
+        if (isDesktop) {
+          // Always open on desktop and save state
+          setIsSidebarOpen(true);
+          localStorage.setItem('admin-sidebar-open', 'true');
+        } else {
+          // On mobile, use saved state or close
+          const savedState = localStorage.getItem('admin-sidebar-open');
+          setIsSidebarOpen(savedState ? JSON.parse(savedState) : false);
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const panelConfig = {
     admin: {
@@ -38,6 +156,27 @@ export default function AdminTeacherSidebar({
 
   const config = panelConfig[panelType];
   const IconComponent = config.icon;
+  
+  // Get navigation items based on panel type
+  const navItems = panelType === "admin" ? adminNavItems : teacherNavItems;
+
+  // Expose toggle function to parent component
+  const toggleSidebar = () => {
+    setIsSidebarOpen(prev => !prev);
+  };
+
+  // Expose methods to parent component via ref
+  useImperativeHandle(ref, () => ({
+    toggleSidebar,
+    isSidebarOpen
+  }), [isSidebarOpen]);
+
+  // Save sidebar state to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-sidebar-open', JSON.stringify(isSidebarOpen));
+    }
+  }, [isSidebarOpen]);
 
   return (
     <>
@@ -49,7 +188,7 @@ export default function AdminTeacherSidebar({
         />
       )}
 
-<div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg ${
+<div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transition-transform duration-300 ease-in-out lg:translate-x-0 ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="flex flex-col h-screen">
@@ -74,7 +213,7 @@ export default function AdminTeacherSidebar({
               </div>
               <div>
                 <p className="text-sm font-medium">{user.name}</p>
-                <p className="text-xs text-muted-foreground">Administrator</p>
+                <p className="text-xs text-muted-foreground">{config.userRole}</p>
               </div>
             </div>
           </div>
@@ -114,4 +253,8 @@ export default function AdminTeacherSidebar({
       </div>
     </>
   );
-}
+});
+
+AdminTeacherSidebar.displayName = 'AdminTeacherSidebar';
+
+export default AdminTeacherSidebar;

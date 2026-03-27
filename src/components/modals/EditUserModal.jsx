@@ -4,13 +4,14 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-export default function EditUserModal({ user, institutions, onSave, onClose }) {
+export default function EditUserModal({ user, institutions, currentUser, onSave, onClose }) {
   const [formData, setFormData] = useState({
     name: user.name || "",
     email: user.email || "",
     institution_id: user.institution_id?.toString() || "none",
     isAdmin: user.isAdmin || false,
     isTeacher: user.isTeacher || false,
+    isEmailVerified: user.isEmailVerified || false,
   });
 
   const handleSubmit = (e) => {
@@ -18,7 +19,7 @@ export default function EditUserModal({ user, institutions, onSave, onClose }) {
     onSave({
       ...user,
       ...formData,
-      institution_id: formData.institution_id === "none" ? null : parseInt(formData.institution_id),
+      institution_id: formData.institution_id === "none" ? null : formData.institution_id,
     });
   };
 
@@ -50,22 +51,31 @@ export default function EditUserModal({ user, institutions, onSave, onClose }) {
           
           <div className="space-y-2">
             <Label htmlFor="institution">Institution</Label>
-            <Select
-              value={formData.institution_id}
-              onValueChange={(value) => setFormData({ ...formData, institution_id: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select institution" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No Institution</SelectItem>
-                {institutions.map((institution) => (
-                  <SelectItem key={institution.id} value={institution.id.toString()}>
-                    {institution.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {currentUser && currentUser.isTeacher && !currentUser.isAdmin && currentUser.institution_id ? (
+              // Teachers see only their institution (read-only)
+              <div className="px-3 py-2 border border-input bg-muted rounded-md flex items-center text-sm">
+                {currentUser.institution?.name || institutions.find(i => i.id === currentUser.institution_id)?.name || 'Your Institution'}
+                <span className="ml-2 text-xs text-muted-foreground">(Your Institution)</span>
+              </div>
+            ) : (
+              // Admins can select any institution
+              <Select
+                value={formData.institution_id}
+                onValueChange={(value) => setFormData({ ...formData, institution_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select institution" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Institution</SelectItem>
+                  {institutions.map((institution) => (
+                    <SelectItem key={institution.id} value={institution.id.toString()}>
+                      {institution.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           
           <div className="space-y-2">
@@ -86,6 +96,14 @@ export default function EditUserModal({ user, institutions, onSave, onClose }) {
                   onChange={(e) => setFormData({ ...formData, isTeacher: e.target.checked })}
                 />
                 <span>Teacher</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.isEmailVerified}
+                  onChange={(e) => setFormData({ ...formData, isEmailVerified: e.target.checked })}
+                />
+                <span>Email Verified</span>
               </label>
             </div>
           </div>

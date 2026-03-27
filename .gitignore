@@ -1,0 +1,14 @@
+# Uploaded database files
+/uploads/databases/
+
+# SQL files in uploads directory
+/uploads/**/*.sql
+
+# Claude Code
+.claude/
+.mcp.json
+
+# Misc
+*.log
+src/texput.log
+src/prisma/prisma/dev.db

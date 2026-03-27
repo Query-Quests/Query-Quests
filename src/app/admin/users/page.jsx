@@ -1,53 +1,38 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Pagination } from "@/components/ui/pagination";
-import { 
-  Users, 
-  Search, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye,
-  Filter,
-  MoreHorizontal,
-  Upload,
-  FileText,
-  X,
-  Check,
-  Mail,
-  Calendar
-} from "lucide-react";
-import { ImportUsersModal, AddUserModal, EditUserModal, InstitutionModal, ConfirmModal } from "@/components/modals";
+import { Plus, Upload } from "lucide-react";
+import { toast } from "sonner";
+import { useUserRole } from "@/hooks/useUserRole";
+import {
+  UsersDataTable,
+  AddUserDialog,
+  EditUserDialog,
+} from "@/components/admin/users";
+import {
+  ImportUsersModal,
+  InstitutionModal,
+  ConfirmModal,
+} from "@/components/modals";
 
 export default function UsersManagement() {
+  const { user } = useUserRole();
+
+  // Data state
   const [users, setUsers] = useState([]);
   const [institutions, setInstitutions] = useState([]);
+
+  // Loading states
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [institutionFilter, setInstitutionFilter] = useState("all");
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [selectedUsers, setSelectedUsers] = useState([]);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -58,30 +43,56 @@ export default function UsersManagement() {
     hasPrevPage: false,
   });
 
+  // Modal states
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isInstitutionModalOpen, setIsInstitutionModalOpen] = useState(false);
+
+  // Delete states
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [usersToDelete, setUsersToDelete] = useState([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
   // Debounce search term
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
-    }, 300); // 300ms delay
-
+    }, 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
   // Fetch users when search term changes (debounced)
   useEffect(() => {
-    if (debouncedSearchTerm !== searchTerm) return; // Only trigger when debounced value matches current
-    fetchUsers(true); // true = isSearching
+    if (debouncedSearchTerm !== searchTerm) return;
+    fetchUsers(true);
   }, [debouncedSearchTerm]);
+
+  // Set institution filter for teachers when user data becomes available
+  useEffect(() => {
+    if (user && user.isTeacher && !user.isAdmin && user.institution_id) {
+      setInstitutionFilter(user.institution_id.toString());
+    }
+  }, [user]);
 
   // Fetch users when other filters change
   useEffect(() => {
-    fetchUsers(false); // false = not searching
-  }, [currentPage, pageSize, roleFilter, institutionFilter]);
+    if (user) {
+      fetchUsers(false);
+    }
+  }, [currentPage, pageSize, roleFilter, institutionFilter, user]);
 
-  // Initial load
+  // Initial load - wait for user data
   useEffect(() => {
-    fetchInstitutions();
-  }, []);
+    if (user) {
+      fetchInstitutions();
+      fetchUsers(false);
+    }
+  }, [user]);
 
   const fetchUsers = async (isSearch = false) => {
     try {
@@ -90,13 +101,21 @@ export default function UsersManagement() {
       } else {
         setIsLoading(true);
       }
-      
+
+      // Apply role-based filtering for teachers
+      let effectiveInstitutionFilter = institutionFilter;
+
+      // Teachers (non-admin) should only see users from their institution
+      if (user && user.isTeacher && !user.isAdmin && user.institution_id) {
+        effectiveInstitutionFilter = user.institution_id.toString();
+      }
+
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: pageSize.toString(),
         search: debouncedSearchTerm,
         role: roleFilter === "all" ? "" : roleFilter,
-        institution: institutionFilter === "all" ? "" : institutionFilter,
+        institution: effectiveInstitutionFilter === "all" ? "" : effectiveInstitutionFilter,
       });
 
       const response = await fetch(`/api/users?${params}`);
@@ -107,6 +126,7 @@ export default function UsersManagement() {
       }
     } catch (error) {
       console.error("Error fetching users:", error);
+      toast.error("Failed to fetch users");
     } finally {
       if (isSearch) {
         setIsSearching(false);
@@ -128,64 +148,110 @@ export default function UsersManagement() {
     }
   };
 
+  // Handlers for pagination
   const handlePageChange = (page) => {
     setCurrentPage(page);
-    setSelectedUsers([]); // Clear selection when changing pages
   };
 
   const handlePageSizeChange = (newPageSize) => {
     setPageSize(parseInt(newPageSize));
-    setCurrentPage(1); // Reset to first page when changing page size
-    setSelectedUsers([]); // Clear selection
+    setCurrentPage(1);
   };
 
+  // Handlers for filters
   const handleSearchChange = (value) => {
     setSearchTerm(value);
-    setCurrentPage(1); // Reset to first page when searching
-    setSelectedUsers([]); // Clear selection
+    setCurrentPage(1);
   };
 
   const handleRoleFilterChange = (value) => {
     setRoleFilter(value);
-    setCurrentPage(1); // Reset to first page when filtering
-    setSelectedUsers([]); // Clear selection
+    setCurrentPage(1);
   };
 
   const handleInstitutionFilterChange = (value) => {
     setInstitutionFilter(value);
-    setCurrentPage(1); // Reset to first page when filtering
-    setSelectedUsers([]); // Clear selection
+    setCurrentPage(1);
   };
 
-  const handleSelectAll = (checked) => {
-    if (checked) {
-      setSelectedUsers(users.map(user => user.id));
-    } else {
-      setSelectedUsers([]);
+  // Edit user handler
+  const handleEditUser = (userToEdit) => {
+    setSelectedUser(userToEdit);
+    setIsEditDialogOpen(true);
+  };
+
+  // Save edited user handler
+  const handleSaveUser = async (updatedUser) => {
+    try {
+      // For teachers, ensure they can only edit users from their institution
+      let userData = { ...updatedUser };
+      if (user && user.isTeacher && !user.isAdmin && user.institution_id) {
+        if (selectedUser && selectedUser.institution_id && selectedUser.institution_id !== user.institution_id) {
+          toast.error("You can only edit users from your institution");
+          return;
+        }
+        userData.institution_id = user.institution_id;
+      }
+
+      const response = await fetch(`/api/users/${updatedUser.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userData),
+      });
+
+      if (response.ok) {
+        toast.success("User updated successfully");
+        await fetchUsers(false);
+        setIsEditDialogOpen(false);
+        setSelectedUser(null);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to update user");
+      }
+    } catch (error) {
+      console.error("Error updating user:", error);
+      toast.error("Error updating user");
     }
   };
 
-  const handleSelectUser = (userId, checked) => {
-    if (checked) {
-      setSelectedUsers(prev => [...prev, userId]);
-    } else {
-      setSelectedUsers(prev => prev.filter(id => id !== userId));
+  // Add user handler
+  const handleAddUser = async (newUser) => {
+    try {
+      // For teachers, force their institution_id
+      let userData = { ...newUser };
+      if (user && user.isTeacher && !user.isAdmin && user.institution_id) {
+        userData.institution_id = user.institution_id;
+      }
+
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userData),
+      });
+
+      if (response.ok) {
+        toast.success(`User "${newUser.name}" created successfully`);
+        await fetchUsers(false);
+        setIsAddDialogOpen(false);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to create user");
+      }
+    } catch (error) {
+      console.error("Error adding user:", error);
+      toast.error("Error creating user");
     }
   };
 
-  const handleEditUser = (user) => {
-    setSelectedUser(user);
-    setIsEditModalOpen(true);
-  };
-
-  const handleDeleteUser = (user) => {
-    setUserToDelete(user);
+  // Delete user handler
+  const handleDeleteUser = (userToRemove) => {
+    setUserToDelete(userToRemove);
     setIsDeleteModalOpen(true);
   };
 
   const confirmDeleteUser = async () => {
     if (!userToDelete) return;
-    
+
     setIsDeleting(true);
     try {
       const response = await fetch(`/api/users/${userToDelete.id}`, {
@@ -193,164 +259,120 @@ export default function UsersManagement() {
       });
 
       if (response.ok) {
+        toast.success("User deleted successfully");
         await fetchUsers(false);
         setIsDeleteModalOpen(false);
         setUserToDelete(null);
-        // Remove from selected users if it was selected
-        setSelectedUsers(prev => prev.filter(id => id !== userToDelete.id));
       } else {
         const error = await response.json();
-        console.error("Failed to delete user:", error);
-        alert("Failed to delete user. Please try again.");
+        toast.error(error.error || "Failed to delete user");
       }
     } catch (error) {
       console.error("Error deleting user:", error);
-      alert("Error deleting user. Please try again.");
+      toast.error("Error deleting user");
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const handleBulkDelete = () => {
-    if (selectedUsers.length === 0) return;
+  // Bulk delete handler
+  const handleBulkDelete = (userIds) => {
+    setUsersToDelete(userIds);
     setIsBulkDeleteModalOpen(true);
   };
 
   const confirmBulkDelete = async () => {
-    if (selectedUsers.length === 0) return;
+    if (usersToDelete.length === 0) return;
 
     setIsBulkDeleting(true);
     try {
-      const response = await fetch('/api/users/bulk-delete', {
+      const response = await fetch("/api/users/bulk-delete", {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userIds: selectedUsers }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: usersToDelete }),
       });
 
       if (response.ok) {
-        setSelectedUsers([]);
+        toast.success(`${usersToDelete.length} users deleted successfully`);
         await fetchUsers(false);
         setIsBulkDeleteModalOpen(false);
+        setUsersToDelete([]);
       } else {
         const error = await response.json();
-        alert(`Error: ${error.error}`);
+        toast.error(error.error || "Failed to delete users");
       }
     } catch (error) {
       console.error("Error bulk deleting users:", error);
-      alert("Error deleting users. Please try again.");
+      toast.error("Error deleting users");
     } finally {
       setIsBulkDeleting(false);
     }
   };
 
-  const handleSaveUser = async (updatedUser) => {
-    try {
-      const response = await fetch(`/api/users/${updatedUser.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedUser),
-      });
-
-      if (response.ok) {
-        await fetchUsers(false);
-        setIsEditModalOpen(false);
-        setSelectedUser(null);
-      }
-    } catch (error) {
-      console.error("Error updating user:", error);
-    }
-  };
-
-  const handleAddUser = async (newUser) => {
-    try {
-      const response = await fetch("/api/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newUser),
-      });
-
-      if (response.ok) {
-        await fetchUsers(false);
-        setIsAddModalOpen(false);
-      } else {
-        const error = await response.json();
-        console.error("Failed to add user:", error);
-      }
-    } catch (error) {
-      console.error("Error adding user:", error);
-    }
-  };
-
+  // Import users handler
   const handleBulkImport = async (usersData) => {
     try {
       const response = await fetch("/api/users/bulk", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ users: usersData }),
       });
 
       if (response.ok) {
+        toast.success("Users imported successfully");
         await fetchUsers(false);
         setIsImportModalOpen(false);
       } else {
         const error = await response.json();
-        console.error("Import failed:", error);
+        toast.error(error.error || "Import failed");
       }
     } catch (error) {
       console.error("Error importing users:", error);
+      toast.error("Error importing users");
     }
   };
 
-  const getRoleBadge = (user) => {
-    if (user.isAdmin) return <Badge variant="destructive" className="text-xs">Admin</Badge>;
-    if (user.isTeacher) return <Badge variant="default" className="text-xs">Teacher</Badge>;
-    return <Badge variant="secondary" className="text-xs">Student</Badge>;
-  };
+  // Add institution handler
+  const handleAddInstitution = async (institutionData) => {
+    try {
+      const response = await fetch("/api/institutions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(institutionData),
+      });
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "Never";
-    return new Date(dateString).toLocaleDateString();
+      if (response.ok) {
+        const newInstitution = await response.json();
+        setInstitutions((prev) => [...prev, newInstitution]);
+        setIsInstitutionModalOpen(false);
+        toast.success("Institution created successfully");
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to create institution");
+      }
+    } catch (error) {
+      console.error("Error creating institution:", error);
+      toast.error("Error creating institution");
+    }
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
-          <p className="text-sm">Loading users...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+    <div className="space-y-8 w-full">
       {/* Header */}
-      <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Users Management</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mt-1">
             Manage all users, their roles, and permissions
           </p>
         </div>
-        <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
-          <Button 
-            onClick={() => setIsAddModalOpen(true)}
-            className="w-full sm:w-auto"
-          >
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
             Add User
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => setIsImportModalOpen(true)}
             className="w-full sm:w-auto"
           >
@@ -360,252 +382,64 @@ export default function UsersManagement() {
         </div>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-2">
-              <Label htmlFor="search">Search</Label>
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="pl-8"
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <Select value={roleFilter} onValueChange={handleRoleFilterChange}>
-                <SelectTrigger id="role">
-                  <SelectValue placeholder="All roles" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All roles</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="teacher">Teacher</SelectItem>
-                  <SelectItem value="student">Student</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      {/* Users Data Table */}
+      <UsersDataTable
+        data={users}
+        isLoading={isLoading}
+        isSearching={isSearching}
+        searchValue={searchTerm}
+        onSearchChange={handleSearchChange}
+        roleFilter={roleFilter}
+        onRoleFilterChange={handleRoleFilterChange}
+        institutionFilter={institutionFilter}
+        onInstitutionFilterChange={handleInstitutionFilterChange}
+        institutions={institutions}
+        onEdit={handleEditUser}
+        onDelete={handleDeleteUser}
+        onBulkDelete={handleBulkDelete}
+        pageSize={pageSize}
+        onPageSizeChange={handlePageSizeChange}
+        pagination={pagination}
+        currentPage={currentPage}
+        onPageChange={handlePageChange}
+        currentUser={user}
+      />
 
-            <div className="space-y-2">
-              <Label htmlFor="institution">Institution</Label>
-              <Select value={institutionFilter} onValueChange={handleInstitutionFilterChange}>
-                <SelectTrigger id="institution">
-                  <SelectValue placeholder="All institutions" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All institutions</SelectItem>
-                  {institutions.map((institution) => (
-                    <SelectItem key={institution.id} value={institution.id.toString()}>
-                      {institution.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      {/* Add User Dialog */}
+      <AddUserDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        institutions={institutions}
+        currentUser={user}
+        onSave={handleAddUser}
+        onAddInstitution={() => setIsInstitutionModalOpen(true)}
+      />
 
-            <div className="space-y-2">
-              <Label htmlFor="page-size">Items per page</Label>
-              <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
-                <SelectTrigger id="page-size">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Users Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-            <div>
-              <CardTitle>Users ({pagination.totalUsers} total)</CardTitle>
-              {selectedUsers.length > 0 && (
-                <CardDescription>
-                  {selectedUsers.length} user(s) selected
-                </CardDescription>
-              )}
-            </div>
-            {selectedUsers.length > 0 && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full sm:w-auto"
-                onClick={handleBulkDelete}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Selected ({selectedUsers.length})
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isSearching ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mx-auto mb-2"></div>
-                <p className="text-sm text-muted-foreground">Searching...</p>
-              </div>
-            </div>
-          ) : users.length === 0 ? (
-            <div className="text-center py-8">
-              <Users className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">No users found matching your criteria</p>
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-10">
-                        <Checkbox 
-                          checked={selectedUsers.length === users.length && users.length > 0}
-                          onCheckedChange={handleSelectAll}
-                        />
-                      </TableHead>
-                      <TableHead className="min-w-[120px] sm:min-w-[200px]">User</TableHead>
-                      <TableHead className="min-w-[60px] sm:min-w-[100px]">Role</TableHead>
-                      <TableHead className="min-w-[100px] hidden sm:table-cell">Institution</TableHead>
-                      <TableHead className="min-w-[70px] hidden md:table-cell">Stats</TableHead>
-                      <TableHead className="min-w-[90px] hidden lg:table-cell">Last Login</TableHead>
-                      <TableHead className="w-12 sm:w-20">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.map((user) => (
-                      <TableRow key={user.id} className="hover:bg-muted/50">
-                        <TableCell>
-                          <Checkbox 
-                            checked={selectedUsers.includes(user.id)}
-                            onCheckedChange={(checked) => handleSelectUser(user.id, checked)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <div className="w-5 h-5 sm:w-6 sm:h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-                              <span className="text-white text-xs font-medium">
-                                {user.name?.charAt(0) || 'U'}
-                              </span>
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-medium text-xs truncate">{user.name}</p>
-                              <p className="text-xs text-muted-foreground truncate hidden sm:block">{user.email}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {getRoleBadge(user)}
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell">
-                          <p className="text-xs text-muted-foreground">
-                            {user.institution?.name || 'None'}
-                          </p>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          <div className="text-xs text-muted-foreground">
-                            <p>{user.solvedChallenges} solved</p>
-                            <p>{user.points} pts</p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          <p className="text-xs text-muted-foreground">
-                            {formatDate(user.last_login)}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-4 w-4 sm:h-6 sm:w-6 p-0"
-                              onClick={() => handleEditUser(user)}
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-4 w-4 sm:h-6 sm:w-6 p-0 text-red-500 hover:text-red-700"
-                              onClick={() => handleDeleteUser(user)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <Card>
-          <CardContent className="p-0">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={pagination.totalPages}
-              onPageChange={handlePageChange}
-              hasNextPage={pagination.hasNextPage}
-              hasPrevPage={pagination.hasPrevPage}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Add User Modal */}
-      {isAddModalOpen && (
-        <AddUserModal
-          institutions={institutions}
-          onSave={handleAddUser}
-          onClose={() => {
-            setIsAddModalOpen(false);
-          }}
-          onInstitutionAdded={(newInstitution) => {
-            setInstitutions(prev => [...prev, newInstitution]);
-          }}
-        />
-      )}
-
-      {/* Edit User Modal */}
-      {isEditModalOpen && selectedUser && (
-        <EditUserModal
-          user={selectedUser}
-          institutions={institutions}
-          onSave={handleSaveUser}
-          onClose={() => {
-            setIsEditModalOpen(false);
-            setSelectedUser(null);
-          }}
-        />
-      )}
+      {/* Edit User Dialog */}
+      <EditUserDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        user={selectedUser}
+        institutions={institutions}
+        currentUser={user}
+        onSave={handleSaveUser}
+      />
 
       {/* Import Users Modal */}
       {isImportModalOpen && (
         <ImportUsersModal
           institutions={institutions}
+          currentUser={user}
           onImport={handleBulkImport}
-          onClose={() => {
-            setIsImportModalOpen(false);
-          }}
+          onClose={() => setIsImportModalOpen(false)}
+        />
+      )}
+
+      {/* Add Institution Modal */}
+      {isInstitutionModalOpen && (
+        <InstitutionModal
+          onSave={handleAddInstitution}
+          onClose={() => setIsInstitutionModalOpen(false)}
         />
       )}
 
@@ -627,14 +461,15 @@ export default function UsersManagement() {
       <ConfirmModal
         isOpen={isBulkDeleteModalOpen}
         title="Delete Selected Users"
-        message={`Are you sure you want to delete ${selectedUsers.length} selected user(s)? This action cannot be undone.`}
+        message={`Are you sure you want to delete ${usersToDelete.length} selected user(s)? This action cannot be undone.`}
         confirmText="Delete Users"
         onConfirm={confirmBulkDelete}
         onCancel={() => {
           setIsBulkDeleteModalOpen(false);
+          setUsersToDelete([]);
         }}
         isLoading={isBulkDeleting}
       />
     </div>
   );
-} 
+}

@@ -1,45 +1,54 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Database,
-  Book,
   LogOut,
   Menu,
   X,
   Shield,
+  User,
+  Home,
+  BookOpen,
+  Trophy,
+  ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [scrolled, setScrolled] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   const handleLogout = async () => {
     try {
-      // Call logout API to clear cookies
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
       });
     } catch (error) {
-      console.error('Error during logout:', error);
+      console.error("Error during logout:", error);
     } finally {
-      // Clear localStorage and redirect
       localStorage.removeItem("user");
       router.push("/auth");
     }
@@ -49,47 +58,85 @@ export default function Header() {
     const userData = localStorage.getItem("user");
     if (userData) {
       try {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
+        setUser(JSON.parse(userData));
       } catch (error) {
         console.error("Error parsing user data:", error);
       }
     }
   }, []);
 
+  const navItems = [
+    { href: "/home", label: "Home", icon: Home },
+    { href: "/lessons", label: "Lessons", icon: BookOpen },
+    { href: "/challenges", label: "Challenges", icon: Trophy },
+  ];
+
+  const isActive = (href) => pathname === href;
+
   return (
-    <header className="bg-background border-b">
-      <div className="container-sm mx-auto px-4 sm:px-6 lg:px-8">
+    <header
+      className={`sticky top-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? "bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm"
+          : "bg-white border-b border-gray-100"
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link href={user ? "/home" : "/auth"} className="flex-shrink-0">
-            <Database className="h-8 w-8 text-primary" aria-hidden="true" />
-            <span className="sr-only">SQL Learn</span>
+          {/* Logo */}
+          <Link
+            href={user ? "/home" : "/auth"}
+            className="flex items-center gap-2 flex-shrink-0"
+          >
+            <div className="bg-[#19aa59] p-1.5 rounded-lg">
+              <Database className="h-5 w-5 text-white" aria-hidden="true" />
+            </div>
+            <span className="text-xl font-bold text-[#030914]">QueryQuest</span>
           </Link>
-          <div className="flex items-center">
-            <div className="flex justify-center">
-              <nav className="hidden md:ml-6 md:flex md:space-x-8">
-                <NavLink href="/home">Home</NavLink>
-                <NavLink href="/lessons">Lessons</NavLink>
-                <NavLink href="/challenges">Challenges</NavLink>
-                {/* <NavLink href="/playground">SQL Playground</NavLink> */}
-              </nav>
-            </div>
-          </div>
-          <div className="hidden md:ml-4 md:flex md:items-center">
-            <div className="mr-3 text-right">
-              <div className="text-base font-medium">{user?.name || 'Loading...'}</div>
-              {user?.institution && (
-                <div className="text-sm text-muted-foreground">{user.institution.name}</div>
-              )}
-            </div>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  isActive(item.href)
+                    ? "bg-[#19aa59]/10 text-[#19aa59]"
+                    : "text-gray-600 hover:text-[#030914] hover:bg-gray-100"
+                }`}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* Desktop User Menu */}
+          <div className="hidden md:flex items-center gap-4">
+            {user && (
+              <div className="text-right mr-2">
+                <div className="text-sm font-semibold text-[#030914]">
+                  {user?.name || "Loading..."}
+                </div>
+                {user?.institution && (
+                  <div className="text-xs text-gray-500">
+                    {user.institution.name}
+                  </div>
+                )}
+              </div>
+            )}
             <UserMenu user={user} onLogout={handleLogout} />
           </div>
+
+          {/* Mobile Menu Button */}
           <div className="flex md:hidden">
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleMenu}
-              aria-label="Open menu"
+              aria-label="Toggle menu"
+              className="text-gray-600"
             >
               {isMenuOpen ? (
                 <X className="h-6 w-6" />
@@ -100,50 +147,75 @@ export default function Header() {
           </div>
         </div>
       </div>
+
+      {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="md:hidden">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <NavLink href="/lessons" mobile>
-              Lessons
-            </NavLink>
-            <NavLink href="/challenges" mobile>
-              Challenges
-            </NavLink>
-            <NavLink href="/playground" mobile>
-              SQL Playground
-            </NavLink>
+        <div className="md:hidden bg-white border-t border-gray-100">
+          <div className="px-4 py-4 space-y-2">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setIsMenuOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-all ${
+                  isActive(item.href)
+                    ? "bg-[#19aa59]/10 text-[#19aa59]"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <item.icon className="h-5 w-5" />
+                {item.label}
+              </Link>
+            ))}
           </div>
-          <div className="pt-4 pb-3 border-t border-gray-700">
-            <div className="flex items-center px-5">
-              <div className="flex-shrink-0">
-                <Avatar>
-                  <AvatarImage src={user?.image_url || "https://github.com/shadcn.png"} alt="User" />
-                  <AvatarFallback>{user?.name?.charAt(0) || 'U'}</AvatarFallback>
-                </Avatar>
-              </div>
-              <div className="ml-3">
-                <div className="text-base font-medium">{user?.name || 'Loading...'}</div>
-                <div className="text-sm font-medium text-muted-foreground">
-                  {user?.institution ? user.institution.name : (user?.alias ? `@${user.alias}` : 'No institution')}
+
+          <div className="px-4 py-4 border-t border-gray-100">
+            <div className="flex items-center gap-3 mb-4">
+              <Avatar className="h-10 w-10 border-2 border-[#19aa59]/20">
+                <AvatarImage src={user?.image_url} alt={user?.name} />
+                <AvatarFallback className="bg-[#19aa59]/10 text-[#19aa59] font-semibold">
+                  {user?.name?.charAt(0) || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <div className="font-semibold text-[#030914]">
+                  {user?.name || "Loading..."}
+                </div>
+                <div className="text-sm text-gray-500">
+                  {user?.institution?.name || "No institution"}
                 </div>
               </div>
             </div>
-            <div className="mt-3 px-2 space-y-1">
-              <MobileMenuItem href="/profile">Profile</MobileMenuItem>
-              {user?.isAdmin && (
-                <MobileMenuItem href="/admin">
-                  Admin Panel
-                </MobileMenuItem>
-              )}
-              {user?.isTeacher && !user?.isAdmin && (
-                <MobileMenuItem href="/teacher">
-                  Teacher Panel
-                </MobileMenuItem>
-              )}
-              <button
-                onClick={handleLogout}
-                className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+
+            <div className="space-y-2">
+              <Link
+                href="/profile"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-gray-600 hover:bg-gray-100 transition-all"
               >
+                <User className="h-5 w-5" />
+                Profile
+              </Link>
+
+              {(user?.isAdmin || user?.isTeacher) && (
+                <Link
+                  href="/admin"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-gray-600 hover:bg-gray-100 transition-all"
+                >
+                  <Shield className="h-5 w-5" />
+                  {user?.isAdmin ? "Admin Panel" : "Teacher Panel"}
+                </Link>
+              )}
+
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  handleLogout();
+                }}
+                className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-base font-medium text-red-600 hover:bg-red-50 transition-all"
+              >
+                <LogOut className="h-5 w-5" />
                 Sign out
               </button>
             </div>
@@ -154,63 +226,56 @@ export default function Header() {
   );
 }
 
-function NavLink({ href, children, mobile = false }) {
-  const baseClasses =
-    "text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors";
-  const desktopClasses = "px-3 py-2 text-sm font-semibold";
-  const mobileClasses = "block px-3 py-2 text-base font-semibold";
-
-  return (
-    <Link
-      href={href}
-      className={`${baseClasses} ${mobile ? mobileClasses : desktopClasses}`}
-    >
-      {children}
-    </Link>
-  );
-}
-
-function MobileMenuItem({ href, children }) {
-  return (
-    <Link
-      href={href}
-      className="block px-3 py-2 rounded-md text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-    >
-      {children}
-    </Link>
-  );
-}
-
 function UserMenu({ user, onLogout }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={user?.image_url || "https://github.com/shadcn.png"} alt="User" />
-            <AvatarFallback>{user?.name?.charAt(0) || 'U'}</AvatarFallback>
+        <Button
+          variant="ghost"
+          className="flex items-center gap-2 h-10 px-2 hover:bg-gray-100 rounded-xl"
+        >
+          <Avatar className="h-8 w-8 border-2 border-[#19aa59]/20">
+            <AvatarImage src={user?.image_url} alt={user?.name} />
+            <AvatarFallback className="bg-[#19aa59]/10 text-[#19aa59] font-semibold text-sm">
+              {user?.name?.charAt(0) || "U"}
+            </AvatarFallback>
           </Avatar>
+          <ChevronDown className="h-4 w-4 text-gray-400" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end" className="w-56 p-2">
+        <div className="px-2 py-2 mb-2">
+          <div className="font-semibold text-[#030914]">{user?.name}</div>
+          <div className="text-sm text-gray-500">{user?.email}</div>
+        </div>
+        <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/profile" className="flex items-center">
-            <Book className="mr-2 h-4 w-4" />
-            <span>Profile</span>
+          <Link
+            href="/profile"
+            className="flex items-center gap-2 cursor-pointer rounded-lg"
+          >
+            <User className="h-4 w-4" />
+            Profile
           </Link>
         </DropdownMenuItem>
+        {(user?.isAdmin || user?.isTeacher) && (
           <DropdownMenuItem asChild>
-            <Link href="/admin" className="flex items-center">
-              <Shield className="mr-2 h-4 w-4" />
-              <span>Administration</span>
+            <Link
+              href="/admin"
+              className="flex items-center gap-2 cursor-pointer rounded-lg"
+            >
+              <Shield className="h-4 w-4" />
+              {user?.isAdmin ? "Admin Panel" : "Teacher Panel"}
             </Link>
           </DropdownMenuItem>
-        <DropdownMenuItem 
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
           onClick={onLogout}
-          className="hover:bg-red-500 hover:text-white focus:bg-red-500 focus:text-white cursor-pointer"
+          className="flex items-center gap-2 cursor-pointer rounded-lg text-red-600 focus:text-red-600 focus:bg-red-50"
         >
-          <LogOut className="mr-2 h-4 w-4 text-inherit" />
-          <span>Log out</span>
+          <LogOut className="h-4 w-4" />
+          Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

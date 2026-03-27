@@ -3,62 +3,77 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
 model Institution {
-  id                 String      @id @default(uuid())
-  name               String
-  address            String?
-  studentEmailSuffix String?
-  teacherEmailSuffix String?
-  challenges         Challenge[]
-  lessons            Lesson[]
-  users              User[]
+  id                  String              @id @default(uuid())
+  name                String
+  address             String?
+  studentEmailSuffix  String?
+  teacherEmailSuffix  String?
+  challenges          Challenge[]
+  lessons             Lesson[]
+  users               User[]
+  challengeDatabases  ChallengeDatabase[]
 }
 
 model User {
-  id                String          @id @default(uuid())
+  id                String              @id @default(uuid())
   name              String
-  email             String          @unique
-  isEmailVerified   Boolean         @default(false)
+  email             String              @unique
+  isEmailVerified   Boolean             @default(false)
   verificationToken String?
   password          String
-  isTeacher         Boolean         @default(false)
-  isAdmin           Boolean         @default(false)
-  solvedChallenges  Int             @default(0)
-  totalScore        Int             @default(0)
+  isTeacher         Boolean             @default(false)
+  isAdmin           Boolean             @default(false)
+  solvedChallenges  Int                 @default(0)
+  totalScore        Int                 @default(0)
   last_login        DateTime?
   institution_id    String?
   createdLessons    Lesson[]
   logs              Log[]
-  institution       Institution?    @relation(fields: [institution_id], references: [id])
+  institution       Institution?        @relation(fields: [institution_id], references: [id])
   userChallenges    UserChallenge[]
+  createdDatabases  ChallengeDatabase[] @relation("DatabaseCreator")
+  queryAttempts     QueryAttempt[]
+
+  @@index([institution_id])
 }
 
 model Challenge {
-  id             String          @id @default(uuid())
-  statement      String
-  help           String?
-  solution       String
-  level          Int
-  initial_score  Int
-  current_score  Int
-  solves         Int             @default(0)
-  created_at     DateTime        @default(now())
-  updated_at     DateTime        @updatedAt
-  institution_id String?
-  institution    Institution?    @relation(fields: [institution_id], references: [id])
+  id               String             @id @default(uuid())
+  name             String
+  statement        String             @db.Text
+  help             String?            @db.Text
+  solution         String             @db.Text
+  level            Int
+  initial_score    Int
+  current_score    Int
+  solves           Int                @default(0)
+  created_at       DateTime           @default(now())
+  updated_at       DateTime           @updatedAt
+  institution_id   String?
+  database_id      String?
+  expectedResult   String?            @db.LongText
+  requiredKeywords String?            @db.Text
+
+  institution    Institution?       @relation(fields: [institution_id], references: [id])
+  database       ChallengeDatabase? @relation(fields: [database_id], references: [id])
   logs           Log[]
   userChallenges UserChallenge[]
+  queryAttempts  QueryAttempt[]
+
+  @@index([institution_id])
+  @@index([database_id])
 }
 
 model Log {
   id           String    @id @default(uuid())
   uuidTrial    String
-  request      String
-  response     String?
+  request      String    @db.Text
+  response     String?   @db.Text
   error_code   Int?
   isCompleted  Boolean   @default(false)
   timestamp    DateTime  @default(now())
@@ -66,6 +81,9 @@ model Log {
   user_id      String
   challenge    Challenge @relation(fields: [challenge_id], references: [id])
   user         User      @relation(fields: [user_id], references: [id])
+
+  @@index([challenge_id])
+  @@index([user_id])
 }
 
 model UserChallenge {
@@ -76,6 +94,9 @@ model UserChallenge {
   challenge_id String
   user         User      @relation(fields: [user_id], references: [id])
   challenge    Challenge @relation(fields: [challenge_id], references: [id])
+
+  @@unique([user_id, challenge_id])
+  @@index([challenge_id])
 }
 
 model ContactRequest {
@@ -87,7 +108,7 @@ model ContactRequest {
   website            String?
   studentEmailSuffix String
   teacherEmailSuffix String
-  message            String?
+  message            String?  @db.Text
   estimatedStudents  Int?
   estimatedTeachers  Int?
   status             String   @default("pending")
@@ -98,8 +119,8 @@ model ContactRequest {
 model Lesson {
   id             String       @id @default(uuid())
   title          String
-  content        String
-  description    String?
+  content        String       @db.Text
+  description    String?      @db.Text
   order          Int          @default(0)
   isPublished    Boolean      @default(false)
   created_at     DateTime     @default(now())
@@ -108,4 +129,58 @@ model Lesson {
   creator_id     String
   creator        User         @relation(fields: [creator_id], references: [id])
   institution    Institution? @relation(fields: [institution_id], references: [id])
+
+  @@index([institution_id])
+  @@index([creator_id])
+}
+
+// Challenge Database Model - Stores uploaded SQL database files
+model ChallengeDatabase {
+  id             String       @id @default(uuid())
+  name           String
+  description    String?      @db.Text
+  filename       String
+  filepath       String
+  filesize       Int
+  mysqlDbName    String       @unique
+  tableCount     Int          @default(0)
+  rowCount       Int          @default(0)
+  schemaPreview  String?      @db.LongText
+  status         String       @default("processing")
+  errorMessage   String?      @db.Text
+  created_at     DateTime     @default(now())
+  updated_at     DateTime     @updatedAt
+  creator_id     String
+  institution_id String?
+
+  creator     User         @relation("DatabaseCreator", fields: [creator_id], references: [id])
+  institution Institution? @relation(fields: [institution_id], references: [id])
+  challenges  Challenge[]
+
+  @@index([institution_id])
+  @@index([status])
+  @@index([creator_id])
+}
+
+// Query Attempt Model - Tracks every query for analytics
+model QueryAttempt {
+  id              String    @id @default(uuid())
+  query           String    @db.Text
+  resultHash      String?
+  rowCount        Int?
+  executionTimeMs Int?
+  isCorrect       Boolean   @default(false)
+  errorMessage    String?   @db.Text
+  keywordsMatched String?   @db.Text
+  timestamp       DateTime  @default(now())
+  user_id         String
+  challenge_id    String
+
+  user      User      @relation(fields: [user_id], references: [id])
+  challenge Challenge @relation(fields: [challenge_id], references: [id])
+
+  @@index([user_id, challenge_id])
+  @@index([timestamp])
+  @@index([user_id])
+  @@index([challenge_id])
 }

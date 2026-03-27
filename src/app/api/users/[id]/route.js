@@ -29,7 +29,7 @@ export async function PUT(request, { params }) {
   try {
     const { id } = await params;
     const data = await request.json();
-    const { name, email, institution_id, isAdmin, isTeacher } = data;
+    const { name, email, institution_id, isAdmin, isTeacher, isEmailVerified } = data;
 
     // Check if email is being changed and if it's already taken by another user
     if (email) {
@@ -56,6 +56,7 @@ export async function PUT(request, { params }) {
         institution_id: institution_id && institution_id !== "none" ? institution_id : null,
         isAdmin: isAdmin !== undefined ? isAdmin : undefined,
         isTeacher: isTeacher !== undefined ? isTeacher : undefined,
+        isEmailVerified: isEmailVerified !== undefined ? isEmailVerified : undefined,
       },
       include: {
         institution: true,

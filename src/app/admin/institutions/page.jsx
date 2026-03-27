@@ -1,39 +1,38 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { 
-  Shield, 
-  Search, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Users,
-  Building,
-  MapPin,
-  Mail
-} from "lucide-react";
-import InstitutionModal from "@/components/modals/InstitutionModal";
+import { PageHeader } from "@/components/ui/page-header";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Building, Users, Shield, Plus, AlertTriangle, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  AddInstitutionDialog,
+  EditInstitutionDialog,
+  InstitutionsDataTable,
+} from "@/components/admin/institutions";
 
 export default function InstitutionsManagement() {
   const [institutions, setInstitutions] = useState([]);
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
   const [selectedInstitution, setSelectedInstitution] = useState(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [institutionToDelete, setInstitutionToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  useEffect(() => {
-    fetchInstitutions();
-    fetchUsers();
-  }, []);
-
-  const fetchInstitutions = async () => {
+  // Fetch institutions
+  const fetchInstitutions = useCallback(async () => {
     try {
       const response = await fetch("/api/institutions");
       if (response.ok) {
@@ -42,43 +41,61 @@ export default function InstitutionsManagement() {
       }
     } catch (error) {
       console.error("Error fetching institutions:", error);
-    } finally {
-      setIsLoading(false);
+      toast.error("Failed to fetch institutions");
     }
-  };
+  }, []);
 
-  const fetchUsers = async () => {
+  // Fetch users for counting
+  const fetchUsers = useCallback(async () => {
     try {
       const response = await fetch("/api/users?limit=1000");
       if (response.ok) {
         const usersData = await response.json();
-        setUsers(usersData.users || usersData); // Handle new API response format
+        setUsers(usersData.users || usersData);
       }
     } catch (error) {
       console.error("Error fetching users:", error);
     }
-  };
+  }, []);
 
-  const filteredInstitutions = institutions.filter(institution => 
-    institution.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    institution.address?.toLowerCase().includes(searchTerm.toLowerCase())
+  // Initial data load
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      await Promise.all([fetchInstitutions(), fetchUsers()]);
+      setIsLoading(false);
+    };
+    loadData();
+  }, [fetchInstitutions, fetchUsers]);
+
+  // Get users count for an institution
+  const getUsersCount = useCallback(
+    (institutionId) => {
+      return users.filter((user) => user.institution_id === institutionId).length;
+    },
+    [users]
   );
 
-  const handleEditInstitution = (institution) => {
-    setSelectedInstitution(institution);
-    setIsEditModalOpen(true);
+  // Prepare table data with user counts
+  const tableData = institutions.map((institution) => ({
+    ...institution,
+    userCount: getUsersCount(institution.id),
+  }));
+
+  // Stats calculations
+  const stats = {
+    totalInstitutions: institutions.length,
+    totalUsers: users.length,
+    activeInstitutions: institutions.filter(
+      (inst) => getUsersCount(inst.id) > 0
+    ).length,
   };
 
-  const handleSaveInstitution = async (institutionData) => {
+  // Handle create institution
+  const handleCreateInstitution = async (institutionData) => {
     try {
-      const url = institutionData.id 
-        ? `/api/institutions/${institutionData.id}`
-        : "/api/institutions";
-      
-      const method = institutionData.id ? "PUT" : "POST";
-      
-      const response = await fetch(url, {
-        method,
+      const response = await fetch("/api/institutions", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
@@ -87,233 +104,253 @@ export default function InstitutionsManagement() {
 
       if (response.ok) {
         await fetchInstitutions();
-        setIsEditModalOpen(false);
-        setIsCreateModalOpen(false);
-        setSelectedInstitution(null);
+        setIsAddDialogOpen(false);
+        toast.success(`Institution "${institutionData.name}" created successfully`);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to create institution");
       }
     } catch (error) {
-      console.error("Error saving institution:", error);
+      console.error("Error creating institution:", error);
+      toast.error("Error creating institution. Please try again.");
     }
   };
 
-  const handleDeleteInstitution = async (institution) => {
-    const userCount = getUsersCount(institution.id);
-    const challengeCount = institution.challengeCount || 0;
-    
-    const message = `Are you sure you want to delete "${institution.name}"?\n\n` +
-      `This will permanently delete:\n` +
-      `• ${userCount} user(s)\n` +
-      `• ${challengeCount} challenge(s)\n` +
-      `• All related logs and user progress\n\n` +
-      `This action cannot be undone.`;
-    
-    if (window.confirm(message)) {
-      try {
-        const response = await fetch(`/api/institutions/${institution.id}`, {
-          method: "DELETE",
-        });
+  // Handle edit institution
+  const handleEditClick = (institution) => {
+    setSelectedInstitution(institution);
+    setIsEditDialogOpen(true);
+  };
 
-        if (response.ok) {
-          const result = await response.json();
-          alert(result.message); // Show the success message with counts
-          await fetchInstitutions();
-          await fetchUsers(); // Refresh users list as well
-        } else {
-          const error = await response.json();
-          alert(`Error: ${error.error}`);
-        }
-      } catch (error) {
-        console.error("Error deleting institution:", error);
-        alert("Error deleting institution. Please try again.");
+  const handleUpdateInstitution = async (institutionData) => {
+    try {
+      const response = await fetch(`/api/institutions/${institutionData.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(institutionData),
+      });
+
+      if (response.ok) {
+        await fetchInstitutions();
+        setIsEditDialogOpen(false);
+        setSelectedInstitution(null);
+        toast.success(`Institution "${institutionData.name}" updated successfully`);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to update institution");
       }
+    } catch (error) {
+      console.error("Error updating institution:", error);
+      toast.error("Error updating institution. Please try again.");
     }
   };
 
-  const getUsersCount = (institutionId) => {
-    return users.filter(user => user.institution_id === institutionId).length;
+  // Handle delete institution
+  const handleDeleteClick = (institution) => {
+    setInstitutionToDelete(institution);
+    setIsDeleteDialogOpen(true);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Loading institutions...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleConfirmDelete = async () => {
+    if (!institutionToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/institutions/${institutionToDelete.id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        await Promise.all([fetchInstitutions(), fetchUsers()]);
+        setIsDeleteDialogOpen(false);
+        setInstitutionToDelete(null);
+        toast.success(result.message || "Institution deleted successfully");
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to delete institution");
+      }
+    } catch (error) {
+      console.error("Error deleting institution:", error);
+      toast.error("Error deleting institution. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
-    <div className="space-y-6 max-w-6xl">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">Institutions Management</h1>
-          <p className="text-muted-foreground text-sm lg:text-base">
-            Manage educational institutions and their associated users
-          </p>
-        </div>
-        <Button 
-          size="sm" 
-          className="w-full lg:w-auto"
-          onClick={() => setIsCreateModalOpen(true)}
-        >
-          <Plus className="h-4 w-4 mr-2" />
+    <div className="space-y-8">
+      {/* Page Header */}
+      <PageHeader
+        title="Institutions"
+        description="Manage educational institutions and their associated users"
+      >
+        <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
           Add Institution
         </Button>
+      </PageHeader>
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100">
+                <Building className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Total Institutions
+                </p>
+                <p className="text-2xl font-bold">{stats.totalInstitutions}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-green-100">
+                <Users className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Total Users
+                </p>
+                <p className="text-2xl font-bold">{stats.totalUsers}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="sm:col-span-2 lg:col-span-1">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-purple-100">
+                <Shield className="h-6 w-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Active Institutions
+                </p>
+                <p className="text-2xl font-bold">{stats.activeInstitutions}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Building className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-medium">Total Institutions</span>
-            </div>
-            <p className="text-2xl font-bold">{institutions.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Users className="h-4 w-4 text-green-600" />
-              <span className="text-sm font-medium">Total Users</span>
-            </div>
-            <p className="text-2xl font-bold">{users.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Shield className="h-4 w-4 text-purple-600" />
-              <span className="text-sm font-medium">Active Institutions</span>
-            </div>
-            <p className="text-2xl font-bold">
-              {institutions.filter(inst => getUsersCount(inst.id) > 0).length}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Search */}
+      {/* Data Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            Search Institutions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <Label htmlFor="search">Search by name or address</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="search"
-                placeholder="Search institutions..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Institutions List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Institutions ({filteredInstitutions.length})</CardTitle>
+          <CardTitle>All Institutions</CardTitle>
           <CardDescription>
-            All registered educational institutions
+            View and manage all registered educational institutions
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {filteredInstitutions.map((institution) => (
-              <div key={institution.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg hover:bg-gray-50 space-y-3 sm:space-y-0">
-                <div className="flex items-center space-x-4">
-                  <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-                    <Building className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-1 sm:space-y-0">
-                      <h3 className="font-medium truncate">{institution.name}</h3>
-                      <Badge variant="secondary">{getUsersCount(institution.id)} users</Badge>
-                      <Badge variant="outline">{institution.challengeCount || 0} challenges</Badge>
-                    </div>
-                    {institution.address && (
-                      <div className="flex items-center space-x-1 mt-1">
-                        <MapPin className="h-3 w-3 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground truncate">{institution.address}</p>
-                      </div>
-                    )}
-                    <div className="flex items-center space-x-2 mt-1 text-xs text-muted-foreground">
-                      <div className="flex items-center space-x-1">
-                        <Mail className="h-3 w-3" />
-                        <span>Students: {institution.studentEmailSuffix}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Mail className="h-3 w-3" />
-                        <span>Teachers: {institution.teacherEmailSuffix}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-2 self-end sm:self-auto">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEditInstitution(institution)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-red-500 hover:text-red-700"
-                    onClick={() => handleDeleteInstitution(institution)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-            
-            {filteredInstitutions.length === 0 && (
-              <div className="text-center py-8">
-                <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No institutions found matching your criteria</p>
-              </div>
-            )}
-          </div>
+          <InstitutionsDataTable
+            data={tableData}
+            onEdit={handleEditClick}
+            onDelete={handleDeleteClick}
+            isLoading={isLoading}
+          />
         </CardContent>
       </Card>
 
-      {/* Edit Institution Modal */}
-      {isEditModalOpen && selectedInstitution && (
-        <InstitutionModal
-          institution={selectedInstitution}
-          onSave={handleSaveInstitution}
-          onClose={() => {
-            setIsEditModalOpen(false);
-            setSelectedInstitution(null);
-          }}
-        />
-      )}
+      {/* Add Institution Dialog */}
+      <AddInstitutionDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onSave={handleCreateInstitution}
+      />
 
-      {/* Create Institution Modal */}
-      {isCreateModalOpen && (
-        <InstitutionModal
-          onSave={handleSaveInstitution}
-          onClose={() => {
-            setIsCreateModalOpen(false);
-          }}
-        />
-      )}
+      {/* Edit Institution Dialog */}
+      <EditInstitutionDialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) setSelectedInstitution(null);
+        }}
+        institution={selectedInstitution}
+        onSave={handleUpdateInstitution}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <DialogTitle>Delete Institution</DialogTitle>
+                <DialogDescription>
+                  This action cannot be undone
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold text-foreground">
+                "{institutionToDelete?.name}"
+              </span>
+              ?
+            </p>
+            {institutionToDelete && (
+              <div className="mt-4 rounded-lg border bg-muted/50 p-3 text-sm">
+                <p className="font-medium text-foreground">
+                  This will permanently delete:
+                </p>
+                <ul className="mt-2 list-inside list-disc space-y-1 text-muted-foreground">
+                  <li>
+                    {getUsersCount(institutionToDelete.id)} user(s)
+                  </li>
+                  <li>
+                    {institutionToDelete.challengeCount || 0} challenge(s)
+                  </li>
+                  <li>All related logs and user progress</li>
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setInstitutionToDelete(null);
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Institution"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-} 
+}

@@ -99,7 +99,15 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const data = await request.json();
-    const { name, email, password, institution_id, isAdmin, isTeacher } = data;
+    const { name, email, password, institution_id, isAdmin, isTeacher, isEmailVerified } = data;
+
+    // Validate required fields
+    if (!name || !email || !password) {
+      return NextResponse.json(
+        { error: "Name, email, and password are required" },
+        { status: 400 }
+      );
+    }
 
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
@@ -117,15 +125,18 @@ export async function POST(request) {
     const bcrypt = require('bcryptjs');
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const userData = {
+      name,
+      email,
+      password: hashedPassword,
+      institution_id: institution_id && institution_id !== "none" ? institution_id.toString() : null,
+      isAdmin: isAdmin || false,
+      isTeacher: isTeacher || false,
+      isEmailVerified: isEmailVerified || false,
+    };
+    
     const newUser = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        institution_id: institution_id && institution_id !== "none" ? institution_id : null,
-        isAdmin: isAdmin || false,
-        isTeacher: isTeacher || false,
-      },
+      data: userData,
       include: {
         institution: true,
       },
@@ -135,9 +146,25 @@ export async function POST(request) {
     const { password: _, ...userWithoutPassword } = newUser;
     return NextResponse.json(userWithoutPassword);
   } catch (error) {
-    console.error(error);
+    console.error("Error creating user:", error);
+    
+    // Handle specific Prisma errors
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: "Email already exists" },
+        { status: 400 }
+      );
+    }
+    
+    if (error.code === 'P2003') {
+      return NextResponse.json(
+        { error: "Invalid institution ID" },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: "Failed to create user" },
+      { error: `Failed to create user: ${error.message}` },
       { status: 500 }
     );
   }

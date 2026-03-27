@@ -4,30 +4,24 @@ import { getLeaderboard } from "@/lib/scoring-utils";
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 25;
+    const limit = parseInt(searchParams.get('limit')) || 20;
     const institution = searchParams.get('institution') || null;
 
-    const skip = (page - 1) * limit;
-
-    // Get total count for pagination
     const { PrismaClient } = await import('@prisma/client');
     const prisma = new PrismaClient();
 
-    const whereClause = institution ? { institution_id: institution } : {};
+    // Build where clause with filters
+    const whereClause = {
+      isAdmin: false, // Exclude admins from leaderboard
+    };
 
-    const totalUsers = await prisma.user.count({
-      where: {
-        ...whereClause,
-        isAdmin: false, // Exclude admins from leaderboard
-      },
-    });
+    // Add institution filter
+    if (institution) {
+      whereClause.institution_id = institution;
+    }
 
     const leaderboard = await prisma.user.findMany({
-      where: {
-        ...whereClause,
-        isAdmin: false, // Exclude admins from leaderboard
-      },
+      where: whereClause,
       select: {
         id: true,
         name: true,
@@ -43,26 +37,13 @@ export async function GET(request) {
       orderBy: {
         totalScore: 'desc',
       },
-      skip,
       take: limit,
     });
-
-    const totalPages = Math.ceil(totalUsers / limit);
-    const hasNextPage = page < totalPages;
-    const hasPrevPage = page > 1;
 
     await prisma.$disconnect();
 
     return NextResponse.json({
       leaderboard,
-      pagination: {
-        totalUsers,
-        totalPages,
-        currentPage: page,
-        pageSize: limit,
-        hasNextPage,
-        hasPrevPage,
-      },
     });
 
   } catch (error) {

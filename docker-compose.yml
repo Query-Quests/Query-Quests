@@ -1,59 +1,84 @@
 services:
-  mysql:
+  # Main application database (Prisma/App data)
+  mysql-app:
     image: mysql:8.0
-    container_name: query-quest-mysql
+    container_name: query-quest-app-db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: queryquest
-      MYSQL_USER: queryquest
-      MYSQL_PASSWORD: queryquest
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: queryquest_app
+      MYSQL_USER: queryquest_app
+      MYSQL_PASSWORD: ${DB_APP_PASSWORD:-appsecure}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_app_data:/var/lib/mysql
+    networks:
+      - queryquest-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Challenge databases (student SQL execution)
+  mysql-challenges:
+    image: mysql:8.0
+    container_name: query-quest-challenges-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mysql_challenges_data:/var/lib/mysql
       - ./mysql-init:/docker-entrypoint-initdb.d
+    networks:
+      - queryquest-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-
+  # MySQL client for shell connections
   mysql-client:
     image: mysql:8.0
     container_name: query-quest-mysql-client
     restart: unless-stopped
     depends_on:
-      - mysql
+      mysql-challenges:
+        condition: service_healthy
     environment:
-      MYSQL_HOST: mysql
+      MYSQL_HOST: mysql-challenges
       MYSQL_PORT: 3306
-      MYSQL_USER: root
-      MYSQL_PASSWORD: password
-      MYSQL_DATABASE: queryquest
-    command: >
-      bash -c "
-        echo 'MySQL Client Container Ready';
-        echo 'Available commands:';
-        echo '  mysql -h mysql -u root -p (password: password)';
-        echo '  mysql -h mysql -u queryquest -p (password: queryquest)';
-        echo '  mysql -h mysql -u root -ppassword queryquest (direct connect)';
-        echo '';
-        echo 'Container shell ready...';
-        tail -f /dev/null
-      "
-    volumes:
-      - ./mysql-init:/docker-entrypoint-initdb.d:ro
+    command: ["tail", "-f", "/dev/null"]
     networks:
-      - default
+      - queryquest-network
 
+  # phpMyAdmin for administration
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
     container_name: query-quest-phpmyadmin
     restart: unless-stopped
     environment:
-      PMA_HOST: mysql
-      PMA_PORT: 3306
+      PMA_HOSTS: mysql-app,mysql-challenges
       PMA_USER: root
-      PMA_PASSWORD: password
+      PMA_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
     ports:
       - "8080:80"
+    networks:
+      - queryquest-network
+    depends_on:
+      mysql-app:
+        condition: service_healthy
+      mysql-challenges:
+        condition: service_healthy
+
+networks:
+  queryquest-network:
+    driver: bridge
 
 volumes:
-  mysql_data:
+  mysql_app_data:
+  mysql_challenges_data:

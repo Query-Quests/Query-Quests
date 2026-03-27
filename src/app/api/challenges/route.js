@@ -16,9 +16,9 @@ export async function GET(request) {
     let whereClause = {};
     
     // Search filter
-    if (search) {
-      whereClause.statement = {
-        contains: search,
+    if (search && search.trim()) {
+      whereClause.name = {
+        contains: search.trim(),
       };
     }
     
@@ -82,18 +82,22 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const data = await request.json();
-    const { 
-      statement, 
-      help, 
-      solution, 
-      level, 
+    const {
+      name,
+      statement,
+      help,
+      solution,
+      level,
       initial_score,
       institution_id: requestInstitutionId,
-      creator_id 
+      creator_id,
+      database_id,
+      expectedResult,
+      requiredKeywords,
     } = data;
 
     // Validate required fields
-    if (!statement || !solution || !level || !initial_score) {
+    if (!name || !statement || !solution || !level || !initial_score) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -126,11 +130,10 @@ export async function POST(request) {
           );
         }
         
-        if (institutionId && institutionId !== creator.institution_id) {
-          return NextResponse.json(
-            { error: "Teachers can only create challenges for their own institution" },
-            { status: 403 }
-          );
+        // For teachers, always use their institution_id regardless of what was requested
+        if (creator.isTeacher && !creator.isAdmin) {
+          institutionId = creator.institution_id;
+          console.log('Teacher creating challenge - forcing institution_id to:', institutionId);
         }
         
         // Set institutionId to teacher's institution if not provided
@@ -142,6 +145,7 @@ export async function POST(request) {
 
     const newChallenge = await prisma.challenge.create({
       data: {
+        name,
         statement,
         help: help || null,
         solution,
@@ -149,9 +153,20 @@ export async function POST(request) {
         initial_score,
         current_score: initial_score, // Start with the same as initial score
         institution_id: institutionId ? institutionId : null,
+        database_id: database_id || null,
+        expectedResult: expectedResult || null,
+        requiredKeywords: requiredKeywords || null,
       },
       include: {
         institution: true,
+        database: {
+          select: {
+            id: true,
+            name: true,
+            mysqlDbName: true,
+            status: true,
+          },
+        },
       },
     });
 

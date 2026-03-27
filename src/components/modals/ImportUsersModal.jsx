@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -6,11 +6,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { X, Upload } from 'lucide-react';
 
-export default function ImportUsersModal({ institutions, onImport, onClose }) {
+export default function ImportUsersModal({ institutions, currentUser, onImport, onClose }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedInstitution, setSelectedInstitution] = useState("none");
+
+  // Set institution for teachers when currentUser data becomes available
+  useEffect(() => {
+    if (currentUser && currentUser.isTeacher && !currentUser.isAdmin && currentUser.institution_id) {
+      setSelectedInstitution(currentUser.institution_id);
+    }
+  }, [currentUser]);
 
   const handleFileChange = async (e) => {
     const selectedFile = e.target.files[0];
@@ -83,19 +90,28 @@ export default function ImportUsersModal({ institutions, onImport, onClose }) {
             {/* Default Institution */}
             <div className="space-y-2">
               <Label htmlFor="default-institution">Default Institution (for all imported users)</Label>
-              <Select value={selectedInstitution} onValueChange={setSelectedInstitution}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select default institution" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Institution</SelectItem>
-                  {institutions.map((institution) => (
-                    <SelectItem key={institution.id} value={institution.id.toString()}>
-                      {institution.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {currentUser && currentUser.isTeacher && !currentUser.isAdmin && currentUser.institution_id ? (
+                // Teachers see only their institution (read-only)
+                <div className="px-3 py-2 border border-input bg-muted rounded-md flex items-center text-sm">
+                  {currentUser.institution?.name || institutions.find(i => i.id === currentUser.institution_id)?.name || 'Your Institution'}
+                  <span className="ml-2 text-xs text-muted-foreground">(Your Institution)</span>
+                </div>
+              ) : (
+                // Admins can select any institution
+                <Select value={selectedInstitution} onValueChange={setSelectedInstitution}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select default institution" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Institution</SelectItem>
+                    {institutions.map((institution) => (
+                      <SelectItem key={institution.id} value={institution.id.toString()}>
+                        {institution.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 

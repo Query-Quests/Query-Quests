@@ -1,4 +1,5 @@
 -- Create sample tables for Query Quest
+CREATE DATABASE IF NOT EXISTS queryquest;
 USE queryquest;
 
 -- Users table
@@ -86,6 +87,11 @@ INSERT INTO user_challenges (user_id, challenge_id, score) VALUES
 (6, 1, 50),
 (6, 2, 75),
 (6, 3, 100);
+
+-- Grant read access to student and teacher users
+GRANT SELECT ON queryquest.* TO 'student_readonly'@'%';
+GRANT SELECT ON queryquest.* TO 'teacher_preview'@'%';
+FLUSH PRIVILEGES;
 
 -- Create indexes for better performance
 CREATE INDEX idx_users_email ON users(email);

@@ -9,6 +9,16 @@ export async function GET(request, { params }) {
       where: { id: id },
       include: {
         institution: true,
+        database: {
+          select: {
+            id: true,
+            name: true,
+            mysqlDbName: true,
+            status: true,
+            tableCount: true,
+            rowCount: true,
+          },
+        },
       },
     });
 
@@ -33,18 +43,22 @@ export async function PUT(request, { params }) {
   try {
     const { id } = await params;
     const data = await request.json();
-    const { 
-      statement, 
-      help, 
-      solution, 
-      level, 
+    const {
+      name,
+      statement,
+      help,
+      solution,
+      level,
       institution_id,
       initial_score,
-      updater_id 
+      updater_id,
+      database_id,
+      expectedResult,
+      requiredKeywords,
     } = data;
 
     // Validate required fields
-    if (!statement || !solution || !level || !initial_score) {
+    if (!name || !statement || !solution || !level || !initial_score) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -97,6 +111,7 @@ export async function PUT(request, { params }) {
     const updatedChallenge = await prisma.challenge.update({
       where: { id: id },
       data: {
+        name,
         statement,
         help: help || null,
         solution,
@@ -105,9 +120,20 @@ export async function PUT(request, { params }) {
         initial_score,
         // Update current_score to match initial_score if it's being changed
         current_score: initial_score,
+        database_id: database_id === 'null' || database_id === '' ? null : database_id,
+        expectedResult: expectedResult || null,
+        requiredKeywords: requiredKeywords || null,
       },
       include: {
         institution: true,
+        database: {
+          select: {
+            id: true,
+            name: true,
+            mysqlDbName: true,
+            status: true,
+          },
+        },
       },
     });
 

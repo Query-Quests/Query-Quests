@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { X, Plus } from 'lucide-react';
 import InstitutionModal from './InstitutionModal';
 
-export default function AddUserModal({ institutions, onSave, onClose, onInstitutionAdded }) {
+export default function AddUserModal({ institutions, currentUser, onSave, onClose, onInstitutionAdded }) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -17,9 +17,21 @@ export default function AddUserModal({ institutions, onSave, onClose, onInstitut
     showAddInstitutionModal: false,
     isAdmin: false,
     isTeacher: false,
+    isEmailVerified: false,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Set institution for teachers when currentUser data becomes available
+  useEffect(() => {
+    if (currentUser && currentUser.isTeacher && !currentUser.isAdmin && currentUser.institution_id) {
+      setFormData(prev => ({
+        ...prev,
+        institution_id: currentUser.institution_id,
+        institutionSearch: currentUser.institution?.name || institutions.find(i => i.id === currentUser.institution_id)?.name || 'Your Institution'
+      }));
+    }
+  }, [currentUser, institutions]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -46,7 +58,7 @@ export default function AddUserModal({ institutions, onSave, onClose, onInstitut
     try {
       await onSave({
         ...formData,
-        institution_id: formData.institution_id === "none" ? null : parseInt(formData.institution_id),
+        institution_id: formData.institution_id === "none" ? null : formData.institution_id,
       });
     } finally {
       setIsSubmitting(false);
@@ -163,28 +175,37 @@ export default function AddUserModal({ institutions, onSave, onClose, onInstitut
                       <X className="h-4 w-4" />
                     </button>
                   )}
-                  <Input
-                    id="institution"
-                    placeholder="Search institutions..."
-                    value={formData.institutionSearch}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setFormData({ 
-                        ...formData, 
-                        institutionSearch: value,
-                        institution_id: value === "" ? "none" : formData.institution_id,
-                        showInstitutionDropdown: true 
-                      });
-                    }}
-                    onFocus={() => setFormData({ ...formData, showInstitutionDropdown: true })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape') {
-                        setFormData(prev => ({ ...prev, showInstitutionDropdown: false }));
-                      }
-                    }}
-                    className={formData.institutionSearch ? "pr-16" : ""}
-                  />
-                  {formData.showInstitutionDropdown && (
+                  {currentUser && currentUser.isTeacher && !currentUser.isAdmin && currentUser.institution_id ? (
+                    // Teachers see only their institution (read-only)
+                    <div className="px-3 py-2 border border-input bg-muted rounded-md flex items-center text-sm">
+                      {formData.institutionSearch || 'Your Institution'}
+                      <span className="ml-2 text-xs text-muted-foreground">(Your Institution)</span>
+                    </div>
+                  ) : (
+                    // Admins can search and select any institution
+                    <Input
+                      id="institution"
+                      placeholder="Search institutions..."
+                      value={formData.institutionSearch}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ 
+                          ...formData, 
+                          institutionSearch: value,
+                          institution_id: value === "" ? "none" : formData.institution_id,
+                          showInstitutionDropdown: true 
+                        });
+                      }}
+                      onFocus={() => setFormData({ ...formData, showInstitutionDropdown: true })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setFormData(prev => ({ ...prev, showInstitutionDropdown: false }));
+                        }
+                      }}
+                      className={formData.institutionSearch ? "pr-16" : ""}
+                    />
+                  )}
+                  {formData.showInstitutionDropdown && !(currentUser && currentUser.isTeacher && !currentUser.isAdmin && currentUser.institution_id) && (
                     <div id="institution-dropdown" className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
                       {/* Add New Institution Button */}
                       <div 
@@ -247,7 +268,7 @@ export default function AddUserModal({ institutions, onSave, onClose, onInstitut
               </div>
               
               <div className="space-y-2">
-                <Label>Role</Label>
+                <Label>Role & Status</Label>
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2">
                     <input
@@ -265,9 +286,17 @@ export default function AddUserModal({ institutions, onSave, onClose, onInstitut
                     />
                     <span>Teacher</span>
                   </label>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.isEmailVerified}
+                      onChange={(e) => setFormData({ ...formData, isEmailVerified: e.target.checked })}
+                    />
+                    <span>Email Verified</span>
+                  </label>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  If neither is selected, the user will be a student
+                  If neither role is selected, the user will be a student
                 </p>
               </div>
             </div>
