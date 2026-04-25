@@ -2,46 +2,17 @@
 
 import * as React from "react";
 import {
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import {
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
   ChevronLeft,
   ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   MoreHorizontal,
   Edit,
   Trash2,
   Users,
+  Search,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,208 +20,54 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { UserRoleBadge } from "./UserRoleBadge";
 
-/**
- * Column header with sorting
- */
-function ColumnHeader({ column, title, className }) {
-  if (!column.getCanSort()) {
-    return <div className={cn(className)}>{title}</div>;
-  }
+const MONO_STYLE = {
+  fontFamily: "var(--font-geist-mono), 'Geist Mono', ui-monospace, monospace",
+};
 
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className={cn("-ml-3 h-8 data-[state=open]:bg-accent", className)}
-      onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-    >
-      <span>{title}</span>
-      {column.getIsSorted() === "desc" ? (
-        <ArrowDown className="ml-2 h-4 w-4" />
-      ) : column.getIsSorted() === "asc" ? (
-        <ArrowUp className="ml-2 h-4 w-4" />
-      ) : (
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      )}
-    </Button>
-  );
+const ROLE_CHIPS = [
+  { value: "all", label: "All" },
+  { value: "student", label: "Students" },
+  { value: "teacher", label: "Teachers" },
+  { value: "admin", label: "Admins" },
+];
+
+function getInitials(name) {
+  if (!name) return "U";
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function formatRelative(dateString) {
+  if (!dateString) return "—";
+  const d = new Date(dateString);
+  const diffMs = Date.now() - d.getTime();
+  const m = Math.floor(diffMs / 60000);
+  if (m < 1) return "Just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const days = Math.floor(h / 24);
+  if (days < 30) return `${days}d ago`;
+  return d.toLocaleDateString();
 }
 
 /**
- * Create columns configuration for users table
- */
-function createColumns({ onEdit, onDelete }) {
-  return [
-    // Selection column
-    {
-      id: "select",
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-          className="translate-y-[2px]"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-          className="translate-y-[2px]"
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-      size: 40,
-    },
-    // User column (name + email)
-    {
-      accessorKey: "name",
-      header: ({ column }) => <ColumnHeader column={column} title="User" />,
-      cell: ({ row }) => {
-        const user = row.original;
-        return (
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-sm font-medium">
-                {user.name?.charAt(0)?.toUpperCase() || "U"}
-              </span>
-            </div>
-            <div className="min-w-0">
-              <p className="font-medium text-sm truncate">{user.name}</p>
-              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-            </div>
-          </div>
-        );
-      },
-      enableSorting: true,
-    },
-    // Role column
-    {
-      id: "role",
-      header: ({ column }) => <ColumnHeader column={column} title="Role" />,
-      accessorFn: (row) => (row.isAdmin ? "admin" : row.isTeacher ? "teacher" : "student"),
-      cell: ({ row }) => <UserRoleBadge user={row.original} />,
-      enableSorting: true,
-      filterFn: (row, id, value) => {
-        if (value === "all") return true;
-        const user = row.original;
-        if (value === "admin") return user.isAdmin;
-        if (value === "teacher") return user.isTeacher && !user.isAdmin;
-        if (value === "student") return !user.isAdmin && !user.isTeacher;
-        return true;
-      },
-    },
-    // Institution column
-    {
-      accessorKey: "institution",
-      header: ({ column }) => <ColumnHeader column={column} title="Institution" />,
-      accessorFn: (row) => row.institution?.name || "None",
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
-          {row.original.institution?.name || "None"}
-        </span>
-      ),
-      enableSorting: true,
-    },
-    // Stats column
-    {
-      id: "stats",
-      header: "Stats",
-      cell: ({ row }) => {
-        const user = row.original;
-        return (
-          <div className="text-xs text-muted-foreground">
-            <p>{user.solvedChallenges || 0} solved</p>
-            <p>{user.points || 0} pts</p>
-          </div>
-        );
-      },
-      enableSorting: false,
-    },
-    // Last login column
-    {
-      accessorKey: "last_login",
-      header: ({ column }) => <ColumnHeader column={column} title="Last Login" />,
-      cell: ({ row }) => {
-        const dateString = row.original.last_login;
-        if (!dateString) {
-          return <span className="text-xs text-muted-foreground">Never</span>;
-        }
-        return (
-          <span className="text-xs text-muted-foreground">
-            {new Date(dateString).toLocaleDateString()}
-          </span>
-        );
-      },
-      enableSorting: true,
-    },
-    // Actions column
-    {
-      id: "actions",
-      header: "",
-      cell: ({ row }) => {
-        const user = row.original;
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onEdit(user)}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => onDelete(user)}
-                className="text-red-600 focus:text-red-600"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
-      enableSorting: false,
-      size: 50,
-    },
-  ];
-}
-
-/**
- * UsersDataTable - Main component for displaying users in a data table
- *
- * @param {Object} props
- * @param {Array} props.data - Array of user objects
- * @param {boolean} props.isLoading - Whether data is loading
- * @param {boolean} props.isSearching - Whether search is in progress
- * @param {string} props.searchValue - Current search value
- * @param {Function} props.onSearchChange - Handler for search changes
- * @param {string} props.roleFilter - Current role filter
- * @param {Function} props.onRoleFilterChange - Handler for role filter changes
- * @param {string} props.institutionFilter - Current institution filter
- * @param {Function} props.onInstitutionFilterChange - Handler for institution filter changes
- * @param {Array} props.institutions - List of institutions for filter
- * @param {Function} props.onEdit - Handler for editing a user
- * @param {Function} props.onDelete - Handler for deleting a user
- * @param {Function} props.onBulkDelete - Handler for bulk delete
- * @param {number} props.pageSize - Items per page
- * @param {Function} props.onPageSizeChange - Handler for page size changes
- * @param {Object} props.pagination - Server-side pagination info
- * @param {number} props.currentPage - Current page number
- * @param {Function} props.onPageChange - Handler for page changes
- * @param {Object} props.currentUser - Current logged in user (for teacher restrictions)
+ * UsersDataTable — Pencil-styled card with header, filter chips, table, pagination.
+ * Preserves all original props and functional features.
  */
 export function UsersDataTable({
   data = [],
@@ -273,94 +90,116 @@ export function UsersDataTable({
   onPageChange,
   currentUser,
 }) {
-  const [sorting, setSorting] = React.useState([]);
-  const [rowSelection, setRowSelection] = React.useState({});
+  const [selected, setSelected] = React.useState(() => new Set());
 
-  // Check if current user is a teacher (not admin)
+  // Reset selection when data changes
+  React.useEffect(() => {
+    setSelected(new Set());
+  }, [data]);
+
   const isTeacherOnly =
     currentUser?.isTeacher && !currentUser?.isAdmin && currentUser?.institution_id;
 
-  const columns = React.useMemo(
-    () => createColumns({ onEdit, onDelete }),
-    [onEdit, onDelete]
-  );
+  const allOnPageSelected =
+    data.length > 0 && data.every((u) => selected.has(u.id));
 
-  const table = useReactTable({
-    data,
-    columns,
-    state: {
-      sorting,
-      rowSelection,
-    },
-    enableRowSelection: true,
-    onSortingChange: setSorting,
-    onRowSelectionChange: setRowSelection,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    // We're using server-side pagination, so no need for client-side
-    manualPagination: true,
-    pageCount: pagination?.totalPages || 1,
-  });
+  const toggleAll = () => {
+    setSelected((prev) => {
+      if (allOnPageSelected) {
+        const next = new Set(prev);
+        data.forEach((u) => next.delete(u.id));
+        return next;
+      }
+      const next = new Set(prev);
+      data.forEach((u) => next.add(u.id));
+      return next;
+    });
+  };
 
-  const selectedRows = table.getFilteredSelectedRowModel().rows;
-  const selectedCount = selectedRows.length;
+  const toggleOne = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
-  // Clear selection when data changes
-  React.useEffect(() => {
-    setRowSelection({});
-  }, [data]);
+  const selectedCount = selected.size;
 
   const handleBulkDelete = () => {
     if (selectedCount > 0 && onBulkDelete) {
-      const selectedUserIds = selectedRows.map((row) => row.original.id);
-      onBulkDelete(selectedUserIds);
+      onBulkDelete(Array.from(selected));
     }
   };
 
-  const getTeacherInstitutionName = () => {
-    if (!currentUser?.institution_id) return "Your Institution";
-    const institution = institutions.find(
-      (i) => i.id === currentUser.institution_id || i.id === parseInt(currentUser.institution_id)
-    );
-    return institution?.name || currentUser?.institution?.name || "Your Institution";
-  };
+  const teacherInstitutionName =
+    institutions.find(
+      (i) =>
+        i.id === currentUser?.institution_id ||
+        i.id === parseInt(currentUser?.institution_id)
+    )?.name ||
+    currentUser?.institution?.name ||
+    "Your Institution";
+
+  const totalUsers = pagination?.totalUsers ?? data.length;
+  const totalPages = pagination?.totalPages ?? 1;
+  const fromIndex = totalUsers === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const toIndex = Math.min(currentPage * pageSize, totalUsers);
 
   return (
-    <div className="space-y-4">
-      {/* Filters Toolbar */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-center">
-          {/* Search */}
-          <Input
-            placeholder="Search users..."
+    <div className="flex flex-col gap-3.5">
+      {/* Toolbar: search + role chips + institution view */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+          <input
+            type="text"
+            placeholder="Search by name, email, or institution..."
             value={searchValue}
             onChange={(e) => onSearchChange?.(e.target.value)}
-            className="w-full sm:max-w-[250px]"
+            className="w-full pl-10 pr-3 h-10 text-[13px] bg-white border border-gray-200 rounded-[10px] placeholder:text-gray-400 focus:outline-none focus:border-[#19aa59] focus:ring-2 focus:ring-[#19aa59]/15"
+            style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}
           />
+        </div>
 
-          {/* Role Filter */}
-          <Select value={roleFilter} onValueChange={onRoleFilterChange}>
-            <SelectTrigger className="w-full sm:w-[140px]">
-              <SelectValue placeholder="All roles" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All roles</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="teacher">Teacher</SelectItem>
-              <SelectItem value="student">Student</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {ROLE_CHIPS.map((chip) => {
+            const active = roleFilter === chip.value;
+            return (
+              <button
+                key={chip.value}
+                onClick={() => onRoleFilterChange?.(chip.value)}
+                className={cn(
+                  "h-8 px-3.5 rounded-lg text-[12px] font-medium transition-colors",
+                  active
+                    ? "bg-[#19aa59] text-white shadow-[0_1px_2px_rgba(16,185,129,0.2)]"
+                    : "bg-white text-[#030914] border border-gray-200 hover:bg-gray-50"
+                )}
+                style={{ letterSpacing: "0.1px" }}
+              >
+                {chip.label}
+              </button>
+            );
+          })}
 
-          {/* Institution Filter */}
+          {/* Institution filter — kept as Select shaped like the View button */}
           {isTeacherOnly ? (
-            <div className="h-9 px-3 py-2 border border-input bg-muted rounded-md flex items-center text-sm w-full sm:w-auto">
-              {getTeacherInstitutionName()}
-              <span className="ml-2 text-xs text-muted-foreground">(Your Institution)</span>
-            </div>
+            <span
+              className="h-8 px-3.5 rounded-lg text-[12px] font-medium text-gray-500 bg-gray-100 border border-gray-200 flex items-center gap-1.5"
+              title="Restricted to your institution"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              {teacherInstitutionName}
+            </span>
           ) : (
             <Select value={institutionFilter} onValueChange={onInstitutionFilterChange}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="All institutions" />
+              <SelectTrigger
+                className="h-8 px-3.5 rounded-lg text-[12px] font-medium text-[#030914] bg-white border border-gray-200 gap-1.5 focus:ring-0 focus:ring-offset-0"
+                style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                <SelectValue placeholder="Institution" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All institutions</SelectItem>
@@ -373,175 +212,231 @@ export function UsersDataTable({
             </Select>
           )}
         </div>
-
-        {/* Bulk Actions & Selection Info */}
-        <div className="flex items-center gap-4">
-          {selectedCount > 0 && (
-            <>
-              <span className="text-sm text-muted-foreground">
-                {selectedCount} selected
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleBulkDelete}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Selected
-              </Button>
-            </>
-          )}
-          {pagination && (
-            <span className="text-sm text-muted-foreground">
-              {pagination.totalUsers} total users
-            </span>
-          )}
-        </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-md border bg-white">
-        {isSearching ? (
+      {/* Selection bar */}
+      {selectedCount > 0 && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-[10px] bg-[#f9fafb] border border-gray-200 text-[12px]">
+          <span className="text-gray-500">
+            <span className="font-semibold text-[#030914]">{selectedCount}</span>{" "}
+            selected
+          </span>
+          <button
+            onClick={handleBulkDelete}
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-red-600 hover:bg-red-50 font-medium"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete selected
+          </button>
+        </div>
+      )}
+
+      {/* Table card */}
+      <div
+        className="rounded-xl bg-white border border-gray-200 overflow-hidden"
+        style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+      >
+        {/* Header row */}
+        <div
+          className="grid items-center gap-4 px-5 py-3 bg-[#f9fafb] border-b border-gray-200 text-[11px] font-bold text-gray-500 uppercase"
+          style={{
+            letterSpacing: "1px",
+            gridTemplateColumns:
+              "16px minmax(0,1fr) 160px 110px 80px 80px 100px 24px",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={allOnPageSelected}
+            onChange={toggleAll}
+            aria-label="Select all"
+            className="h-4 w-4 rounded border-gray-300 accent-[#19aa59]"
+          />
+          <span>Name</span>
+          <span>Institution</span>
+          <span>Role</span>
+          <span>Solved</span>
+          <span>Status</span>
+          <span>Last active</span>
+          <span aria-hidden="true" />
+        </div>
+
+        {/* Body */}
+        {isSearching || isLoading ? (
           <div className="flex items-center justify-center py-16">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">Searching...</p>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#19aa59] mx-auto mb-3" />
+              <p className="text-[13px] text-gray-500">
+                {isSearching ? "Searching..." : "Loading users..."}
+              </p>
             </div>
           </div>
-        ) : isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">Loading users...</p>
+        ) : data.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-16">
+            <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center">
+              <Users className="h-5 w-5 text-gray-400" />
             </div>
+            <p className="text-[13px] font-semibold text-[#030914]">No users found</p>
+            <p className="text-[12px] text-gray-500">
+              Try adjusting your search or filters.
+            </p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      className={cn(
-                        header.id === "select" && "w-[40px]",
-                        header.id === "actions" && "w-[50px]",
-                        // Hide some columns on mobile
-                        header.id === "institution" && "hidden md:table-cell",
-                        header.id === "stats" && "hidden lg:table-cell",
-                        header.id === "last_login" && "hidden xl:table-cell"
-                      )}
+          data.map((user, idx) => {
+            const isSelected = selected.has(user.id);
+            const isLast = idx === data.length - 1;
+            return (
+              <div
+                key={user.id}
+                className={cn(
+                  "grid items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors",
+                  !isLast && "border-b border-gray-200",
+                  isSelected && "bg-[#f0fdf4]"
+                )}
+                style={{
+                  gridTemplateColumns:
+                    "16px minmax(0,1fr) 160px 110px 80px 80px 100px 24px",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleOne(user.id)}
+                  aria-label={`Select ${user.name}`}
+                  className="h-4 w-4 rounded border-gray-300 accent-[#19aa59]"
+                />
+
+                {/* Name + email */}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#19aa59] text-white text-[11px] font-bold flex-shrink-0">
+                    {getInitials(user.name)}
+                  </span>
+                  <div className="min-w-0 flex flex-col gap-0.5">
+                    <p className="text-[13px] font-semibold text-[#030914] truncate">
+                      {user.name}
+                    </p>
+                    <p
+                      className="text-[11px] text-gray-500 truncate"
+                      style={MONO_STYLE}
                     >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                    className="hover:bg-muted/50"
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Institution */}
+                <span className="text-[13px] text-[#030914] truncate">
+                  {user.institution?.name || "—"}
+                </span>
+
+                {/* Role */}
+                <UserRoleBadge user={user} />
+
+                {/* Solved */}
+                <span
+                  className="text-[13px] font-semibold text-[#030914]"
+                  style={MONO_STYLE}
+                >
+                  {user.solvedChallenges ?? 0}
+                </span>
+
+                {/* Status */}
+                <span className="inline-flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      user.is_active === false ? "bg-gray-400" : "bg-emerald-500"
+                    )}
+                  />
+                  <span className="text-[12px] text-gray-700">
+                    {user.is_active === false ? "Archived" : "Active"}
+                  </span>
+                </span>
+
+                {/* Last active */}
+                <span className="text-[12px] text-gray-500">
+                  {formatRelative(user.last_login)}
+                </span>
+
+                {/* Actions */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    aria-label="Open user actions"
+                    className="inline-flex items-center justify-center h-7 w-7 rounded-md text-gray-500 hover:text-[#030914] hover:bg-gray-100"
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        className={cn(
-                          // Hide some columns on mobile
-                          cell.column.id === "institution" && "hidden md:table-cell",
-                          cell.column.id === "stats" && "hidden lg:table-cell",
-                          cell.column.id === "last_login" && "hidden xl:table-cell"
-                        )}
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <Users className="h-8 w-8 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        No users found matching your criteria
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                    <MoreHorizontal className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onEdit?.(user)}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => onDelete?.(user)}
+                      className="text-red-600 focus:text-red-600"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            );
+          })
         )}
       </div>
 
-      {/* Pagination */}
-      {pagination && pagination.totalPages > 1 && (
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Rows per page</span>
-            <Select value={pageSize.toString()} onValueChange={onPageSizeChange}>
-              <SelectTrigger className="h-8 w-[70px]">
-                <SelectValue placeholder={pageSize} />
-              </SelectTrigger>
-              <SelectContent side="top">
-                {[10, 25, 50].map((size) => (
-                  <SelectItem key={size} value={size.toString()}>
-                    {size}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      {/* Pagination footer */}
+      {pagination && totalUsers > 0 && (
+        <div
+          className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-white border border-gray-200 px-5 py-3.5"
+          style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-[12px] text-gray-500">
+              Showing {fromIndex} to {toIndex} of {totalUsers} users
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[12px] text-gray-500">Rows</span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={onPageSizeChange}
+              >
+                <SelectTrigger className="h-7 w-[64px] text-[12px] border-gray-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 25, 50].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">
-              Page {currentPage} of {pagination.totalPages}
+            <button
+              onClick={() => onPageChange?.(currentPage - 1)}
+              disabled={!pagination.hasPrevPage}
+              className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-gray-200 text-[12px] font-medium text-[#030914] bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              Previous
+            </button>
+            <span className="text-[12px] text-gray-500">
+              Page {currentPage} of {totalPages}
             </span>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onPageChange?.(1)}
-                disabled={!pagination.hasPrevPage}
-              >
-                <ChevronsLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onPageChange?.(currentPage - 1)}
-                disabled={!pagination.hasPrevPage}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onPageChange?.(currentPage + 1)}
-                disabled={!pagination.hasNextPage}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onPageChange?.(pagination.totalPages)}
-                disabled={!pagination.hasNextPage}
-              >
-                <ChevronsRight className="h-4 w-4" />
-              </Button>
-            </div>
+            <button
+              onClick={() => onPageChange?.(currentPage + 1)}
+              disabled={!pagination.hasNextPage}
+              className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-gray-200 text-[12px] font-medium text-[#030914] bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
       )}

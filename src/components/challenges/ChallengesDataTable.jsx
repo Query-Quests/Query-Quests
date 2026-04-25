@@ -18,12 +18,12 @@ import {
   Edit,
   Eye,
   MoreHorizontal,
-  Filter,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
@@ -47,32 +47,46 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { ChallengeDifficultyBadge } from "./ChallengeDifficultyBadge";
 import { ChallengeStatusBadge } from "./ChallengeStatusBadge";
 
-// Column header with sorting
+// Column header with sorting — Pencil style: uppercase, 11px, tracked, muted
 function ColumnHeader({ column, title, className }) {
+  const labelClass = cn(
+    "text-[11px] font-bold uppercase text-gray-500",
+    className
+  );
+
   if (!column.getCanSort()) {
-    return <div className={cn(className)}>{title}</div>;
+    return (
+      <span
+        className={labelClass}
+        style={{ letterSpacing: "1px" }}
+      >
+        {title}
+      </span>
+    );
   }
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className={cn("-ml-3 h-8 data-[state=open]:bg-accent", className)}
+    <button
+      type="button"
       onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      className={cn(
+        labelClass,
+        "inline-flex items-center gap-1 hover:text-[#030914]"
+      )}
+      style={{ letterSpacing: "1px" }}
     >
       <span>{title}</span>
       {column.getIsSorted() === "desc" ? (
-        <ArrowDown className="ml-2 h-4 w-4" />
+        <ArrowDown className="h-3 w-3" />
       ) : column.getIsSorted() === "asc" ? (
-        <ArrowUp className="ml-2 h-4 w-4" />
+        <ArrowUp className="h-3 w-3" />
       ) : (
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="h-3 w-3 opacity-60" />
       )}
-    </Button>
+    </button>
   );
 }
 
@@ -104,27 +118,27 @@ export function getChallengesColumns({ onEdit, onDelete, onView }) {
     },
     {
       accessorKey: "name",
-      header: ({ column }) => <ColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => (
-        <div className="min-w-[150px]">
-          <p className="font-medium text-sm truncate max-w-[200px]">
-            {row.getValue("name") || "Unnamed Challenge"}
-          </p>
-        </div>
-      ),
+      header: ({ column }) => <ColumnHeader column={column} title="Challenge" />,
+      cell: ({ row }) => {
+        const name = row.getValue("name") || "Unnamed Challenge";
+        const statement = row.original.statement || "";
+        return (
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <p className="text-[13px] font-semibold text-[#030914] truncate">
+              {name}
+            </p>
+            {statement && (
+              <p
+                className="text-[11px] text-gray-500 truncate"
+                style={{ fontFamily: "var(--font-geist-mono), monospace" }}
+              >
+                {statement}
+              </p>
+            )}
+          </div>
+        );
+      },
       enableSorting: true,
-    },
-    {
-      accessorKey: "statement",
-      header: "Statement",
-      cell: ({ row }) => (
-        <div className="min-w-[200px] max-w-[300px] hidden md:block">
-          <p className="text-xs text-muted-foreground line-clamp-2">
-            {row.getValue("statement")}
-          </p>
-        </div>
-      ),
-      enableSorting: false,
     },
     {
       accessorKey: "level",
@@ -143,18 +157,21 @@ export function getChallengesColumns({ onEdit, onDelete, onView }) {
       cell: ({ row }) => {
         const score = row.getValue("current_score") || row.original.initial_score || 0;
         return (
-          <Badge variant="outline" className="font-mono text-xs">
-            {score} pts
-          </Badge>
+          <span
+            className="text-[13px] font-semibold text-[#030914]"
+            style={{ fontFamily: "var(--font-geist-mono), monospace" }}
+          >
+            {score}
+          </span>
         );
       },
       enableSorting: true,
     },
     {
       accessorKey: "institution",
-      header: "Institution",
+      header: () => <ColumnHeader column={{ getCanSort: () => false }} title="Institution" />,
       cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground hidden sm:inline">
+        <span className="text-[12px] text-gray-500 truncate">
           {row.original.institution?.name || "Platform-wide"}
         </span>
       ),
@@ -164,7 +181,10 @@ export function getChallengesColumns({ onEdit, onDelete, onView }) {
       accessorKey: "solves",
       header: ({ column }) => <ColumnHeader column={column} title="Solves" />,
       cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground hidden md:inline">
+        <span
+          className="text-[13px] font-semibold text-[#030914]"
+          style={{ fontFamily: "var(--font-geist-mono), monospace" }}
+        >
           {row.getValue("solves") || 0}
         </span>
       ),
@@ -176,7 +196,10 @@ export function getChallengesColumns({ onEdit, onDelete, onView }) {
       cell: ({ row }) => {
         const date = row.getValue("created_at");
         return (
-          <span className="text-xs text-muted-foreground hidden lg:inline">
+          <span
+            className="text-[12px] text-gray-500"
+            style={{ fontFamily: "var(--font-geist-mono), monospace" }}
+          >
             {date ? new Date(date).toLocaleDateString() : "N/A"}
           </span>
         );
@@ -231,9 +254,18 @@ export function getChallengesColumns({ onEdit, onDelete, onView }) {
   ];
 }
 
+// Difficulty filter chips matching Pencil
+const LEVEL_CHIPS = [
+  { value: "all", label: "All" },
+  { value: "1", label: "Beginner" },
+  { value: "2", label: "Easy" },
+  { value: "3", label: "Medium" },
+  { value: "4", label: "Hard" },
+  { value: "5", label: "Expert" },
+];
+
 // Toolbar component
 function ChallengesToolbar({
-  table,
   globalFilter,
   onGlobalFilterChange,
   levelFilter,
@@ -246,42 +278,53 @@ function ChallengesToolbar({
   isTeacher,
   userInstitutionId,
   userInstitutionName,
+  isSearching,
 }) {
   return (
-    <div className="flex flex-col gap-4 py-4">
-      <div className="flex flex-col sm:flex-row gap-4">
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
         {/* Search */}
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
             placeholder="Search challenges..."
             value={globalFilter ?? ""}
             onChange={(e) => onGlobalFilterChange(e.target.value)}
-            className="pl-9 h-9"
+            className="w-full pl-10 h-10 text-[13px] border border-gray-200 rounded-[10px] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] focus:outline-none focus:border-[#19aa59] focus:ring-2 focus:ring-[#19aa59]/20"
           />
+          {isSearching && (
+            <Loader2Spinner className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-gray-400" />
+          )}
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2">
-          {/* Level Filter */}
-          <Select value={levelFilter} onValueChange={onLevelFilterChange}>
-            <SelectTrigger className="w-[140px] h-9">
-              <Filter className="mr-2 h-4 w-4" />
-              <SelectValue placeholder="Level" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Levels</SelectItem>
-              <SelectItem value="1">Level 1</SelectItem>
-              <SelectItem value="2">Level 2</SelectItem>
-              <SelectItem value="3">Level 3</SelectItem>
-              <SelectItem value="4">Level 4</SelectItem>
-              <SelectItem value="5">Level 5</SelectItem>
-            </SelectContent>
-          </Select>
+        {/* Difficulty chips */}
+        <div className="flex flex-wrap gap-1.5">
+          {LEVEL_CHIPS.map((chip) => {
+            const active = levelFilter === chip.value;
+            return (
+              <button
+                key={chip.value}
+                type="button"
+                onClick={() => onLevelFilterChange(chip.value)}
+                className={cn(
+                  "h-8 px-3.5 rounded-lg text-[12px] font-semibold transition-colors",
+                  active
+                    ? "bg-[#19aa59] text-white shadow-[0_1px_2px_rgba(16,185,129,0.2)]"
+                    : "bg-white text-[#030914] border border-gray-200 hover:bg-gray-50"
+                )}
+                style={{ letterSpacing: "0.1px" }}
+              >
+                {chip.label}
+              </button>
+            );
+          })}
+        </div>
 
-          {/* Institution Filter */}
+        {/* Institution Filter */}
+        <div className="flex-shrink-0">
           {isTeacher && userInstitutionId ? (
-            <div className="h-9 px-3 py-2 border border-input bg-muted rounded-md flex items-center text-sm">
+            <div className="h-10 px-3.5 border border-gray-200 bg-gray-100 rounded-[10px] flex items-center text-[12px] text-gray-600">
               {userInstitutionName || "Your Institution"}
             </div>
           ) : (
@@ -289,7 +332,7 @@ function ChallengesToolbar({
               value={institutionFilter}
               onValueChange={onInstitutionFilterChange}
             >
-              <SelectTrigger className="w-[160px] h-9">
+              <SelectTrigger className="w-[170px] h-10 text-[12px] rounded-[10px] border-gray-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
                 <SelectValue placeholder="Institution" />
               </SelectTrigger>
               <SelectContent>
@@ -308,20 +351,19 @@ function ChallengesToolbar({
 
       {/* Bulk actions */}
       {selectedCount > 0 && (
-        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
-          <span className="text-sm font-medium">
+        <div className="flex items-center gap-3 px-3.5 py-2.5 bg-white border border-gray-200 rounded-[10px]">
+          <span className="text-[13px] font-semibold text-[#030914]">
             {selectedCount} selected
           </span>
           {onBulkDelete && (
-            <Button
-              variant="destructive"
-              size="sm"
+            <button
+              type="button"
               onClick={onBulkDelete}
-              className="h-7"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white border border-gray-200 text-[13px] font-semibold text-red-600 hover:bg-red-50"
             >
-              <Trash2 className="mr-2 h-3 w-3" />
-              Delete Selected
-            </Button>
+              <Trash2 className="h-3.5 w-3.5" />
+              Bulk delete
+            </button>
           )}
         </div>
       )}
@@ -329,58 +371,64 @@ function ChallengesToolbar({
   );
 }
 
-// Pagination component
-function ChallengesPagination({ table, totalCount }) {
+// Tiny loader to avoid importing Loader2 just for the spinner
+function Loader2Spinner({ className }) {
   return (
-    <div className="flex flex-col gap-4 px-2 py-4 sm:flex-row sm:items-center sm:justify-between border-t">
-      <div className="text-sm text-muted-foreground">
-        {totalCount > 0 && (
-          <span>
-            Showing {table.getRowModel().rows.length} of {totalCount} challenges
-          </span>
-        )}
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+// Pagination component — Pencil style: white card with shadow
+function ChallengesPagination({ table, totalCount }) {
+  const pageIndex = table.getState().pagination.pageIndex;
+  const pageSize = table.getState().pagination.pageSize;
+  const pageCount = table.getPageCount() || 1;
+  const visibleCount = table.getRowModel().rows.length;
+  const start = visibleCount === 0 ? 0 : pageIndex * pageSize + 1;
+  const end = pageIndex * pageSize + visibleCount;
+  const total = totalCount || visibleCount;
+
+  return (
+    <div className="flex flex-col gap-3 px-5 py-3.5 bg-white border border-gray-200 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] sm:flex-row sm:items-center sm:justify-between">
+      <div className="text-[12px] text-gray-500">
+        {total > 0
+          ? `Showing ${start} to ${end} of ${total} challenges`
+          : "No challenges to show"}
       </div>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
-        <div className="flex items-center space-x-2">
-          <p className="text-sm font-medium">Per page</p>
-          <Select
-            value={`${table.getState().pagination.pageSize}`}
-            onValueChange={(value) => table.setPageSize(Number(value))}
-          >
-            <SelectTrigger className="h-8 w-[70px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[10, 25, 50, 100].map((size) => (
-                <SelectItem key={size} value={`${size}`}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center justify-center text-sm font-medium">
-          Page {table.getState().pagination.pageIndex + 1} of{" "}
-          {table.getPageCount() || 1}
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
-        </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => table.previousPage()}
+          disabled={!table.getCanPreviousPage()}
+          className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg bg-white border border-gray-200 text-[12px] font-medium text-[#030914] hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+          Previous
+        </button>
+        <span className="text-[12px] text-gray-500 px-2">
+          Page {pageIndex + 1} of {pageCount}
+        </span>
+        <button
+          type="button"
+          onClick={() => table.nextPage()}
+          disabled={!table.getCanNextPage()}
+          className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg bg-white border border-gray-200 text-[12px] font-medium text-[#030914] hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white"
+        >
+          Next
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
       </div>
     </div>
   );
@@ -450,9 +498,8 @@ export function ChallengesDataTable({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-3.5">
       <ChallengesToolbar
-        table={table}
         globalFilter={globalFilter}
         onGlobalFilterChange={onGlobalFilterChange}
         levelFilter={levelFilter}
@@ -465,15 +512,22 @@ export function ChallengesDataTable({
         isTeacher={isTeacher}
         userInstitutionId={userInstitutionId}
         userInstitutionName={userInstitutionName}
+        isSearching={isSearching}
       />
 
-      <div className="rounded-md border bg-card">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
+              <TableRow
+                key={headerGroup.id}
+                className="bg-[#f9f9f9] hover:bg-[#f9f9f9] border-b border-gray-200"
+              >
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead
+                    key={header.id}
+                    className="h-auto px-5 py-3.5 align-middle"
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -490,8 +544,8 @@ export function ChallengesDataTable({
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
                   <div className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-                    <span className="text-sm text-muted-foreground">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#19aa59]" />
+                    <span className="text-[13px] text-gray-500">
                       Loading challenges...
                     </span>
                   </div>
@@ -502,10 +556,13 @@ export function ChallengesDataTable({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="hover:bg-muted/50"
+                  className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50/60 data-[state=selected]:bg-[#19aa59]/5"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      key={cell.id}
+                      className="px-5 py-4 align-middle"
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
@@ -517,7 +574,7 @@ export function ChallengesDataTable({
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-[13px] text-gray-500">
                     No challenges found.
                   </span>
                 </TableCell>

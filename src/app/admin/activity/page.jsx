@@ -1,72 +1,28 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Activity, TrendingUp, Users, Clock } from "lucide-react";
-import { ActivityFilters, ActivityDataTable } from "@/components/admin/activity";
+import { Download, Filter } from "lucide-react";
+import {
+  ActivityFilters,
+  ActivityDataTable,
+  getCategoryForType,
+} from "@/components/admin/activity";
 
-// Mock data generator for demo purposes
-function generateMockActivity() {
-  const types = [
-    "login",
-    "logout",
-    "challenge_start",
-    "challenge_complete",
-    "user_created",
-    "user_updated",
-    "settings_changed",
-    "password_changed",
-  ];
-
-  const users = [
-    { id: 1, name: "John Doe", email: "john@example.com" },
-    { id: 2, name: "Jane Smith", email: "jane@example.com" },
-    { id: 3, name: "Bob Johnson", email: "bob@example.com" },
-    { id: 4, name: "Alice Brown", email: "alice@example.com" },
-    { id: 5, name: "Charlie Wilson", email: "charlie@example.com" },
-  ];
-
-  const descriptions = {
-    login: "User logged in successfully",
-    logout: "User logged out",
-    challenge_start: "Started challenge: SQL Basics",
-    challenge_complete: "Completed challenge with score 95%",
-    user_created: "New user account created",
-    user_updated: "Profile information updated",
-    settings_changed: "System settings modified",
-    password_changed: "Password changed successfully",
-  };
-
-  const activities = [];
-  const now = new Date();
-
-  for (let i = 0; i < 50; i++) {
-    const type = types[Math.floor(Math.random() * types.length)];
-    const user = users[Math.floor(Math.random() * users.length)];
-    const hoursAgo = Math.floor(Math.random() * 168); // Up to 7 days ago
-
-    activities.push({
-      id: i + 1,
-      type,
-      user,
-      description: descriptions[type],
-      ipAddress: `192.168.1.${Math.floor(Math.random() * 255)}`,
-      createdAt: new Date(now.getTime() - hoursAgo * 60 * 60 * 1000).toISOString(),
-    });
-  }
-
-  return activities.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+// Pulls events from /api/admin/activity (UserChallenge, LessonProgress,
+// QueryAttempt, User.last_login) and maps them to the table's expected
+// row shape.
+async function loadRealActivity() {
+  const r = await fetch("/api/admin/activity?limit=200", { credentials: "include" });
+  if (!r.ok) return [];
+  const data = await r.json();
+  return (data.events ?? []).map((e) => ({
+    id: e.id,
+    type: e.type,
+    user: e.actor,
+    description: e.details,
+    createdAt: e.timestamp,
+  }));
 }
-
-// Mock users for filter dropdown
-const mockUsers = [
-  { id: 1, name: "John Doe", email: "john@example.com" },
-  { id: 2, name: "Jane Smith", email: "jane@example.com" },
-  { id: 3, name: "Bob Johnson", email: "bob@example.com" },
-  { id: 4, name: "Alice Brown", email: "alice@example.com" },
-  { id: 5, name: "Charlie Wilson", email: "charlie@example.com" },
-];
 
 export default function ActivityPage() {
   const [activities, setActivities] = useState([]);
@@ -74,46 +30,13 @@ export default function ActivityPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({
     search: "",
-    type: "all",
-    userId: "all",
-    dateRange: "last7days",
-    startDate: null,
-    endDate: null,
-  });
-
-  // Stats
-  const [stats, setStats] = useState({
-    totalToday: 0,
-    activeUsers: 0,
-    avgPerHour: 0,
+    category: "all",
   });
 
   const loadActivities = useCallback(async () => {
     setIsLoading(true);
     try {
-      // In a real app, fetch from API with filters
-      // const params = new URLSearchParams(filters);
-      // const response = await fetch(`/api/admin/activity?${params}`);
-      // const data = await response.json();
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      const mockData = generateMockActivity();
-      setActivities(mockData);
-
-      // Calculate stats
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayActivities = mockData.filter(
-        (a) => new Date(a.createdAt) >= today
-      );
-      const uniqueUsers = new Set(mockData.map((a) => a.user.id)).size;
-
-      setStats({
-        totalToday: todayActivities.length,
-        activeUsers: uniqueUsers,
-        avgPerHour: Math.round(mockData.length / 168), // 7 days * 24 hours
-      });
+      setActivities(await loadRealActivity());
     } catch (error) {
       console.error("Error loading activities:", error);
     } finally {
@@ -125,70 +48,21 @@ export default function ActivityPage() {
   useEffect(() => {
     let filtered = [...activities];
 
-    // Search filter
     if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
+      const q = filters.search.toLowerCase();
       filtered = filtered.filter(
         (a) =>
-          a.user.name.toLowerCase().includes(searchLower) ||
-          a.user.email.toLowerCase().includes(searchLower) ||
-          a.description?.toLowerCase().includes(searchLower)
+          a.user?.name?.toLowerCase().includes(q) ||
+          a.user?.email?.toLowerCase().includes(q) ||
+          a.description?.toLowerCase().includes(q) ||
+          a.type?.toLowerCase().includes(q)
       );
     }
 
-    // Type filter
-    if (filters.type && filters.type !== "all") {
-      filtered = filtered.filter((a) => a.type === filters.type);
-    }
-
-    // User filter
-    if (filters.userId && filters.userId !== "all") {
+    if (filters.category && filters.category !== "all") {
       filtered = filtered.filter(
-        (a) => a.user.id.toString() === filters.userId
+        (a) => getCategoryForType(a.type) === filters.category
       );
-    }
-
-    // Date range filter
-    const now = new Date();
-    let startDate = null;
-
-    switch (filters.dateRange) {
-      case "today":
-        startDate = new Date(now);
-        startDate.setHours(0, 0, 0, 0);
-        break;
-      case "yesterday":
-        startDate = new Date(now);
-        startDate.setDate(startDate.getDate() - 1);
-        startDate.setHours(0, 0, 0, 0);
-        break;
-      case "last7days":
-        startDate = new Date(now);
-        startDate.setDate(startDate.getDate() - 7);
-        break;
-      case "last30days":
-        startDate = new Date(now);
-        startDate.setDate(startDate.getDate() - 30);
-        break;
-      case "last90days":
-        startDate = new Date(now);
-        startDate.setDate(startDate.getDate() - 90);
-        break;
-      case "custom":
-        if (filters.startDate) {
-          startDate = new Date(filters.startDate);
-        }
-        break;
-    }
-
-    if (startDate) {
-      filtered = filtered.filter((a) => new Date(a.createdAt) >= startDate);
-    }
-
-    if (filters.dateRange === "custom" && filters.endDate) {
-      const endDate = new Date(filters.endDate);
-      endDate.setHours(23, 59, 59, 999);
-      filtered = filtered.filter((a) => new Date(a.createdAt) <= endDate);
     }
 
     setFilteredActivities(filtered);
@@ -199,88 +73,44 @@ export default function ActivityPage() {
   }, [loadActivities]);
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="flex flex-col gap-5 w-full">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Activity Log</h1>
-        <p className="text-muted-foreground text-sm lg:text-base">
-          Monitor user activity and system events
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-[28px] font-bold text-[#030914] tracking-[-1px] leading-tight">
+            Activity log
+          </h1>
+          <p className="text-sm text-gray-500">
+            All auditable actions across the platform
+          </p>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 h-[38px] px-[14px] rounded-[10px] text-[13px] font-semibold text-[#030914] bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+          >
+            <Filter className="h-3.5 w-3.5" />
+            All events
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 h-[38px] px-[14px] rounded-[10px] text-[13px] font-semibold text-white bg-[#030914] hover:bg-[#030914]/90 transition-colors"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export CSV
+          </button>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Today's Activity</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalToday}</div>
-            <p className="text-xs text-muted-foreground">Events recorded today</p>
-          </CardContent>
-        </Card>
+      {/* Toolbar */}
+      <ActivityFilters filters={filters} onFiltersChange={setFilters} />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.activeUsers}</div>
-            <p className="text-xs text-muted-foreground">Users in the last 7 days</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Per Hour</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.avgPerHour}</div>
-            <p className="text-xs text-muted-foreground">Events per hour (avg)</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <ActivityFilters
-        filters={filters}
-        onFiltersChange={setFilters}
-        users={mockUsers}
-        onRefresh={loadActivities}
+      {/* Table + pagination */}
+      <ActivityDataTable
+        data={filteredActivities}
         isLoading={isLoading}
+        pageSize={25}
       />
-
-      {/* Activity Table */}
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Recent Activity
-              </CardTitle>
-              <CardDescription>
-                {filteredActivities.length} events found
-              </CardDescription>
-            </div>
-            {filters.type !== "all" && (
-              <Badge variant="secondary" className="w-fit">
-                Filtered by: {filters.type.replace("_", " ")}
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ActivityDataTable
-            data={filteredActivities}
-            isLoading={isLoading}
-            pageSize={10}
-          />
-        </CardContent>
-      </Card>
     </div>
   );
 }

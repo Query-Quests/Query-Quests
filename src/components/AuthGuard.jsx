@@ -10,7 +10,7 @@ export default function AuthGuard({ children }) {
   const pathname = usePathname();
 
   // Public routes that don't require authentication
-  const publicRoutes = useMemo(() => ["/", "/auth", "/terms", "/privacy", "/verify-email"], []);
+  const publicRoutes = useMemo(() => ["/", "/auth", "/terms", "/privacy", "/contact", "/verify-email"], []);
 
   useEffect(() => {
     const checkAuth = () => {

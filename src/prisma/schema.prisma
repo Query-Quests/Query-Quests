@@ -13,8 +13,11 @@ model Institution {
   address             String?
   studentEmailSuffix  String?
   teacherEmailSuffix  String?
+  plan                String              @default("free")
+  seats               Int                 @default(50)
   challenges          Challenge[]
   lessons             Lesson[]
+  modules             Module[]
   users               User[]
   challengeDatabases  ChallengeDatabase[]
 }
@@ -31,8 +34,11 @@ model User {
   solvedChallenges  Int                 @default(0)
   totalScore        Int                 @default(0)
   last_login        DateTime?
+  is_active         Boolean             @default(true)
+  archived_at       DateTime?
   institution_id    String?
   createdLessons    Lesson[]
+  lessonProgress    LessonProgress[]
   logs              Log[]
   institution       Institution?        @relation(fields: [institution_id], references: [id])
   userChallenges    UserChallenge[]
@@ -58,9 +64,12 @@ model Challenge {
   database_id      String?
   expectedResult   String?            @db.LongText
   requiredKeywords String?            @db.Text
+  comparator       Json?
+  guard_mode       String             @default("graded")
 
   institution    Institution?       @relation(fields: [institution_id], references: [id])
   database       ChallengeDatabase? @relation(fields: [database_id], references: [id])
+  datasets       ChallengeDataset[]
   logs           Log[]
   userChallenges UserChallenge[]
   queryAttempts  QueryAttempt[]
@@ -116,6 +125,22 @@ model ContactRequest {
   updated_at         DateTime @updatedAt
 }
 
+model Module {
+  id             String       @id @default(uuid())
+  title          String
+  description    String?      @db.Text
+  order          Int          @default(0)
+  isPublished    Boolean      @default(false)
+  created_at     DateTime     @default(now())
+  updated_at     DateTime     @updatedAt
+  institution_id String?
+
+  institution Institution? @relation(fields: [institution_id], references: [id])
+  lessons     Lesson[]
+
+  @@index([institution_id])
+}
+
 model Lesson {
   id             String       @id @default(uuid())
   title          String
@@ -127,11 +152,39 @@ model Lesson {
   updated_at     DateTime     @updatedAt
   institution_id String?
   creator_id     String
-  creator        User         @relation(fields: [creator_id], references: [id])
-  institution    Institution? @relation(fields: [institution_id], references: [id])
+  module_id      String?
+
+  creator     User             @relation(fields: [creator_id], references: [id])
+  institution Institution?     @relation(fields: [institution_id], references: [id])
+  module      Module?          @relation(fields: [module_id], references: [id], onDelete: SetNull)
+  progress    LessonProgress[]
 
   @@index([institution_id])
   @@index([creator_id])
+  @@index([module_id, order])
+}
+
+enum LessonStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model LessonProgress {
+  id             String       @id @default(uuid())
+  user_id        String
+  lesson_id      String
+  status         LessonStatus @default(IN_PROGRESS)
+  started_at     DateTime     @default(now())
+  completed_at   DateTime?
+  last_viewed_at DateTime     @default(now())
+
+  user   User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lesson_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, lesson_id])
+  @@index([user_id])
+  @@index([lesson_id])
 }
 
 // Challenge Database Model - Stores uploaded SQL database files
@@ -153,13 +206,38 @@ model ChallengeDatabase {
   creator_id     String
   institution_id String?
 
-  creator     User         @relation("DatabaseCreator", fields: [creator_id], references: [id])
-  institution Institution? @relation(fields: [institution_id], references: [id])
+  creator     User               @relation("DatabaseCreator", fields: [creator_id], references: [id])
+  institution Institution?       @relation(fields: [institution_id], references: [id])
   challenges  Challenge[]
+  datasets    ChallengeDataset[]
 
   @@index([institution_id])
   @@index([status])
   @@index([creator_id])
+}
+
+// ChallengeDataset — N hidden/public datasets per challenge.
+// A submission must match the expected result on every attached
+// dataset (Phase B anti-cheat). is_public datasets are visible to
+// students in the schema viewer; hidden datasets are admin/teacher-
+// only and never leak rows back to students.
+model ChallengeDataset {
+  id              String   @id @default(uuid())
+  challenge_id    String
+  database_id     String
+  is_public       Boolean  @default(false)
+  expectedResult  String   @db.LongText
+  expectedHash    String
+  dataset_version Int      @default(1)
+  display_order   Int      @default(0)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  challenge Challenge         @relation(fields: [challenge_id], references: [id], onDelete: Cascade)
+  database  ChallengeDatabase @relation(fields: [database_id], references: [id])
+
+  @@index([challenge_id])
+  @@index([database_id])
 }
 
 // Query Attempt Model - Tracks every query for analytics
@@ -170,6 +248,7 @@ model QueryAttempt {
   rowCount        Int?
   executionTimeMs Int?
   isCorrect       Boolean   @default(false)
+  verdict         String    @default("failed")
   errorMessage    String?   @db.Text
   keywordsMatched String?   @db.Text
   timestamp       DateTime  @default(now())
@@ -180,6 +259,7 @@ model QueryAttempt {
   challenge Challenge @relation(fields: [challenge_id], references: [id])
 
   @@index([user_id, challenge_id])
+  @@index([challenge_id, isCorrect, timestamp])
   @@index([timestamp])
   @@index([user_id])
   @@index([challenge_id])

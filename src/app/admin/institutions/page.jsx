@@ -1,9 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/ui/page-header";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Building, Users, Shield, Plus, AlertTriangle, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Plus, AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   AddInstitutionDialog,
@@ -31,7 +29,6 @@ export default function InstitutionsManagement() {
   const [institutionToDelete, setInstitutionToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Fetch institutions
   const fetchInstitutions = useCallback(async () => {
     try {
       const response = await fetch("/api/institutions");
@@ -45,7 +42,6 @@ export default function InstitutionsManagement() {
     }
   }, []);
 
-  // Fetch users for counting
   const fetchUsers = useCallback(async () => {
     try {
       const response = await fetch("/api/users?limit=1000");
@@ -58,7 +54,6 @@ export default function InstitutionsManagement() {
     }
   }, []);
 
-  // Initial data load
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -68,7 +63,6 @@ export default function InstitutionsManagement() {
     loadData();
   }, [fetchInstitutions, fetchUsers]);
 
-  // Get users count for an institution
   const getUsersCount = useCallback(
     (institutionId) => {
       return users.filter((user) => user.institution_id === institutionId).length;
@@ -76,29 +70,19 @@ export default function InstitutionsManagement() {
     [users]
   );
 
-  // Prepare table data with user counts
   const tableData = institutions.map((institution) => ({
     ...institution,
     userCount: getUsersCount(institution.id),
   }));
 
-  // Stats calculations
-  const stats = {
-    totalInstitutions: institutions.length,
-    totalUsers: users.length,
-    activeInstitutions: institutions.filter(
-      (inst) => getUsersCount(inst.id) > 0
-    ).length,
-  };
+  const totalUsers = users.length;
+  const activeCount = institutions.filter((inst) => getUsersCount(inst.id) > 0).length;
 
-  // Handle create institution
   const handleCreateInstitution = async (institutionData) => {
     try {
       const response = await fetch("/api/institutions", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(institutionData),
       });
 
@@ -116,7 +100,6 @@ export default function InstitutionsManagement() {
     }
   };
 
-  // Handle edit institution
   const handleEditClick = (institution) => {
     setSelectedInstitution(institution);
     setIsEditDialogOpen(true);
@@ -126,9 +109,7 @@ export default function InstitutionsManagement() {
     try {
       const response = await fetch(`/api/institutions/${institutionData.id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(institutionData),
       });
 
@@ -147,7 +128,6 @@ export default function InstitutionsManagement() {
     }
   };
 
-  // Handle delete institution
   const handleDeleteClick = (institution) => {
     setInstitutionToDelete(institution);
     setIsDeleteDialogOpen(true);
@@ -181,86 +161,33 @@ export default function InstitutionsManagement() {
   };
 
   return (
-    <div className="space-y-8">
-      {/* Page Header */}
-      <PageHeader
-        title="Institutions"
-        description="Manage educational institutions and their associated users"
-      >
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Institution
-        </Button>
-      </PageHeader>
-
-      {/* Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100">
-                <Building className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Total Institutions
-                </p>
-                <p className="text-2xl font-bold">{stats.totalInstitutions}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-green-100">
-                <Users className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Total Users
-                </p>
-                <p className="text-2xl font-bold">{stats.totalUsers}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="sm:col-span-2 lg:col-span-1">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-purple-100">
-                <Shield className="h-6 w-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Active Institutions
-                </p>
-                <p className="text-2xl font-bold">{stats.activeInstitutions}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="flex flex-col gap-5">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-[28px] font-bold text-[#030914] tracking-[-1px] leading-tight">
+            Institutions
+          </h1>
+          <p className="text-[14px] text-gray-500">
+            {activeCount} active institutions · {totalUsers.toLocaleString()} total users
+          </p>
+        </div>
+        <button
+          onClick={() => setIsAddDialogOpen(true)}
+          className="inline-flex items-center gap-1.5 bg-[#19aa59] hover:bg-[#15934d] text-white text-[13px] font-bold px-4 py-2.5 rounded-[10px] transition-colors"
+        >
+          <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+          Add institution
+        </button>
       </div>
 
       {/* Data Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All Institutions</CardTitle>
-          <CardDescription>
-            View and manage all registered educational institutions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <InstitutionsDataTable
-            data={tableData}
-            onEdit={handleEditClick}
-            onDelete={handleDeleteClick}
-            isLoading={isLoading}
-          />
-        </CardContent>
-      </Card>
+      <InstitutionsDataTable
+        data={tableData}
+        onEdit={handleEditClick}
+        onDelete={handleDeleteClick}
+        isLoading={isLoading}
+      />
 
       {/* Add Institution Dialog */}
       <AddInstitutionDialog
@@ -282,48 +209,46 @@ export default function InstitutionsManagement() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
               </div>
               <div>
-                <DialogTitle>Delete Institution</DialogTitle>
-                <DialogDescription>
+                <DialogTitle className="text-[16px] font-semibold text-[#030914]">
+                  Delete institution
+                </DialogTitle>
+                <DialogDescription className="text-[12px] text-gray-500">
                   This action cannot be undone
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground">
+          <div className="py-2">
+            <p className="text-[13px] text-gray-600">
               Are you sure you want to delete{" "}
-              <span className="font-semibold text-foreground">
+              <span className="font-semibold text-[#030914]">
                 "{institutionToDelete?.name}"
               </span>
               ?
             </p>
             {institutionToDelete && (
-              <div className="mt-4 rounded-lg border bg-muted/50 p-3 text-sm">
-                <p className="font-medium text-foreground">
+              <div className="mt-4 rounded-lg border border-gray-200 bg-[#f9f9f9] p-3 text-[12px]">
+                <p className="font-semibold text-[#030914]">
                   This will permanently delete:
                 </p>
-                <ul className="mt-2 list-inside list-disc space-y-1 text-muted-foreground">
-                  <li>
-                    {getUsersCount(institutionToDelete.id)} user(s)
-                  </li>
-                  <li>
-                    {institutionToDelete.challengeCount || 0} challenge(s)
-                  </li>
+                <ul className="mt-2 list-inside list-disc space-y-1 text-gray-500">
+                  <li>{getUsersCount(institutionToDelete.id)} user(s)</li>
+                  <li>{institutionToDelete.challengeCount || 0} challenge(s)</li>
                   <li>All related logs and user progress</li>
                 </ul>
               </div>
             )}
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-2">
             <Button
               variant="outline"
               onClick={() => {
@@ -331,13 +256,14 @@ export default function InstitutionsManagement() {
                 setInstitutionToDelete(null);
               }}
               disabled={isDeleting}
+              className="h-9 text-[13px] font-medium border-gray-200"
             >
               Cancel
             </Button>
-            <Button
-              variant="destructive"
+            <button
               onClick={handleConfirmDelete}
               disabled={isDeleting}
+              className="inline-flex items-center justify-center h-9 px-4 rounded-md bg-red-500 hover:bg-red-600 text-white text-[13px] font-semibold disabled:opacity-50"
             >
               {isDeleting ? (
                 <>
@@ -345,9 +271,9 @@ export default function InstitutionsManagement() {
                   Deleting...
                 </>
               ) : (
-                "Delete Institution"
+                "Delete institution"
               )}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

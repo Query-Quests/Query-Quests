@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { userIdFromCookies } from "@/lib/auth-server";
 
 export async function GET(request, { params }) {
   try {
@@ -8,14 +9,15 @@ export async function GET(request, { params }) {
       where: { id: id },
       include: {
         institution: true,
+        module: true,
         creator: {
           select: {
             id: true,
             name: true,
             isTeacher: true,
-            isAdmin: true
-          }
-        }
+            isAdmin: true,
+          },
+        },
       },
     });
 
@@ -23,7 +25,43 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
     }
 
-    return NextResponse.json(lesson);
+    const userId = userIdFromCookies(request.cookies);
+
+    const [siblings, progress, moduleProgress] = await Promise.all([
+      lesson.module_id
+        ? prisma.lesson.findMany({
+            where: { module_id: lesson.module_id, isPublished: true },
+            select: { id: true, title: true, order: true },
+            orderBy: { order: "asc" },
+          })
+        : Promise.resolve([]),
+      userId
+        ? prisma.lessonProgress.findUnique({
+            where: { user_id_lesson_id: { user_id: userId, lesson_id: id } },
+          })
+        : Promise.resolve(null),
+      userId && lesson.module_id
+        ? prisma.lessonProgress.findMany({
+            where: {
+              user_id: userId,
+              lesson: { module_id: lesson.module_id },
+            },
+            select: { lesson_id: true, status: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const moduleProgressMap = {};
+    for (const row of moduleProgress) {
+      moduleProgressMap[row.lesson_id] = row.status;
+    }
+
+    return NextResponse.json({
+      ...lesson,
+      siblings,
+      progress,
+      moduleProgress: moduleProgressMap,
+    });
   } catch (error) {
     console.error(error);
     return NextResponse.json(
@@ -37,13 +75,14 @@ export async function PUT(request, { params }) {
   try {
     const { id } = await params;
     const data = await request.json();
-    const { 
-      title, 
-      content, 
-      description, 
-      order, 
+    const {
+      title,
+      content,
+      description,
+      order,
       isPublished,
-      updater_id 
+      updater_id,
+      module_id,
     } = data;
 
     if (!title || !content) {
@@ -73,6 +112,7 @@ export async function PUT(request, { params }) {
         description: description || null,
         order: order || 0,
         isPublished: isPublished || false,
+        module_id: module_id ?? null,
       },
       include: {
         institution: true,

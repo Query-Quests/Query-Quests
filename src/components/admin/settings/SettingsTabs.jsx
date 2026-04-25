@@ -1,13 +1,13 @@
 "use client";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, createContext, useContext } from "react";
 import {
   Settings,
   Bell,
   Shield,
   Palette,
   Database,
-  Users
+  Users,
 } from "lucide-react";
 
 const tabs = [
@@ -19,36 +19,64 @@ const tabs = [
   { id: "system", label: "System", icon: Database },
 ];
 
-export function SettingsTabs({ children, defaultValue = "general", onTabChange }) {
+const SettingsTabsContext = createContext({ active: "general" });
+
+export function SettingsTabs({
+  children,
+  defaultValue = "general",
+  onTabChange,
+}) {
+  const [active, setActive] = useState(defaultValue);
+
+  const handleSelect = (id) => {
+    setActive(id);
+    onTabChange?.(id);
+  };
+
   return (
-    <Tabs
-      defaultValue={defaultValue}
-      className="w-full space-y-6"
-      onValueChange={onTabChange}
-    >
-      <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 h-auto gap-1 bg-muted/50 p-1">
-        {tabs.map((tab) => (
-          <TabsTrigger
-            key={tab.id}
-            value={tab.id}
-            className="flex items-center gap-2 px-3 py-2 text-xs sm:text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
-          >
-            <tab.icon className="h-4 w-4" />
-            <span className="hidden sm:inline">{tab.label}</span>
-          </TabsTrigger>
-        ))}
-      </TabsList>
-      {children}
-    </Tabs>
+    <SettingsTabsContext.Provider value={{ active }}>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <aside className="w-full lg:w-[220px] lg:flex-shrink-0">
+          <p className="px-3 text-[11px] font-bold tracking-[2px] text-gray-500 mb-3">
+            SETTINGS
+          </p>
+          <nav className="flex flex-col gap-1">
+            {tabs.map((tab) => {
+              const isActive = active === tab.id;
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => handleSelect(tab.id)}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] transition-colors text-left ${
+                    isActive
+                      ? "bg-white border border-gray-200 text-[#030914] font-semibold"
+                      : "text-gray-500 font-medium hover:bg-gray-100 border border-transparent"
+                  }`}
+                >
+                  <Icon
+                    className={`h-3.5 w-3.5 ${
+                      isActive ? "text-[#19aa59]" : "text-gray-500"
+                    }`}
+                  />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+
+        <div className="flex-1 min-w-0 flex flex-col gap-6">{children}</div>
+      </div>
+    </SettingsTabsContext.Provider>
   );
 }
 
 export function SettingsTabContent({ value, children }) {
-  return (
-    <TabsContent value={value} className="mt-6 space-y-6">
-      {children}
-    </TabsContent>
-  );
+  const { active } = useContext(SettingsTabsContext);
+  if (active !== value) return null;
+  return <div className="flex flex-col gap-6">{children}</div>;
 }
 
 export { tabs };

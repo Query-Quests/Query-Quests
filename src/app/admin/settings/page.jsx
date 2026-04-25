@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Save, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   SettingsTabs,
@@ -59,6 +58,33 @@ const defaultSettings = {
   maintenanceMessage: "",
 };
 
+const TAB_HEADINGS = {
+  general: {
+    title: "Organization settings",
+    subtitle: "Settings applied across the entire QueryQuest instance.",
+  },
+  notifications: {
+    title: "Notification settings",
+    subtitle: "Decide which events trigger emails and in-app alerts.",
+  },
+  security: {
+    title: "Security & authentication",
+    subtitle: "Tighten access, sessions, and password policies.",
+  },
+  appearance: {
+    title: "Appearance",
+    subtitle: "Customize the look and feel of the platform.",
+  },
+  users: {
+    title: "User & registration settings",
+    subtitle: "Limits, defaults, and how new accounts are created.",
+  },
+  system: {
+    title: "System",
+    subtitle: "Maintenance, data export, and destructive actions.",
+  },
+};
+
 export default function AdminSettings() {
   const [settings, setSettings] = useState(defaultSettings);
   const [originalSettings, setOriginalSettings] = useState(defaultSettings);
@@ -73,13 +99,6 @@ export default function AdminSettings() {
   const loadSettings = async () => {
     setIsLoading(true);
     try {
-      // In a real app, fetch settings from API
-      // const response = await fetch("/api/admin/settings");
-      // const data = await response.json();
-      // setSettings(data);
-      // setOriginalSettings(data);
-
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 500));
       setSettings(defaultSettings);
       setOriginalSettings(defaultSettings);
@@ -95,19 +114,12 @@ export default function AdminSettings() {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
-  const hasChanges = JSON.stringify(settings) !== JSON.stringify(originalSettings);
+  const hasChanges =
+    JSON.stringify(settings) !== JSON.stringify(originalSettings);
 
   const handleSaveSettings = async () => {
     setIsSaving(true);
     try {
-      // In a real app, save settings to API
-      // await fetch("/api/admin/settings", {
-      //   method: "PUT",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(settings),
-      // });
-
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
       setOriginalSettings(settings);
       toast.success("Settings saved successfully");
@@ -119,13 +131,12 @@ export default function AdminSettings() {
     }
   };
 
+  const handleCancel = () => {
+    setSettings(originalSettings);
+  };
+
   const handleExportData = async () => {
     try {
-      // In a real app, this would trigger a download
-      // const response = await fetch("/api/admin/export-data");
-      // const blob = await response.blob();
-      // ...
-
       toast.info("Export functionality would download platform data as JSON");
     } catch (error) {
       console.error("Error exporting data:", error);
@@ -134,7 +145,6 @@ export default function AdminSettings() {
   };
 
   const handleImportData = async () => {
-    // In a real app, this would open a file picker
     toast.info("Import functionality would allow uploading data from a file");
   };
 
@@ -145,7 +155,6 @@ export default function AdminSettings() {
       )
     ) {
       try {
-        // await fetch("/api/admin/reset-system", { method: "POST" });
         toast.info("System reset would clear all data and restore defaults");
       } catch (error) {
         console.error("Error resetting system:", error);
@@ -156,41 +165,24 @@ export default function AdminSettings() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading settings...</p>
-        </div>
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-[#19aa59]" />
       </div>
     );
   }
 
-  return (
-    <div className="space-y-6 w-full">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Settings</h1>
-          <p className="text-muted-foreground text-sm lg:text-base">
-            Configure platform settings and system preferences
-          </p>
-        </div>
-        <Button
-          onClick={handleSaveSettings}
-          disabled={isSaving || !hasChanges}
-          className="w-full sm:w-auto"
-        >
-          {isSaving ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
-          {isSaving ? "Saving..." : "Save Changes"}
-        </Button>
-      </div>
+  const heading = TAB_HEADINGS[activeTab] ?? TAB_HEADINGS.general;
 
-      {/* Tabs */}
+  return (
+    <div className="flex flex-col gap-6 max-w-6xl">
       <SettingsTabs defaultValue={activeTab} onTabChange={setActiveTab}>
+        <header className="flex flex-col gap-1.5">
+          <h1 className="text-[28px] font-bold text-[#030914] tracking-[-1px] leading-tight">
+            {heading.title}
+          </h1>
+          <p className="text-sm text-gray-500">{heading.subtitle}</p>
+        </header>
+
         <SettingsTabContent value="general">
           <GeneralSettingsForm
             settings={settings}
@@ -235,6 +227,26 @@ export default function AdminSettings() {
             onResetSystem={handleResetSystem}
           />
         </SettingsTabContent>
+
+        <div className="flex justify-end gap-2.5 pt-2">
+          <button
+            type="button"
+            onClick={handleCancel}
+            disabled={!hasChanges || isSaving}
+            className="inline-flex items-center justify-center rounded-lg bg-white border border-gray-200 px-4 py-2.5 text-[13px] font-semibold text-[#030914] hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveSettings}
+            disabled={isSaving || !hasChanges}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#19aa59] hover:bg-[#15934d] px-5 py-2.5 text-[13px] font-bold text-white disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {isSaving ? "Saving..." : "Save changes"}
+          </button>
+        </div>
       </SettingsTabs>
     </div>
   );

@@ -19,6 +19,29 @@ export async function GET(request, { params }) {
             rowCount: true,
           },
         },
+        datasets: {
+          // Public datasets only — hidden ones never leak through
+          // this endpoint. Admin/teacher tooling uses the dedicated
+          // /api/challenges/[id]/datasets route instead.
+          where: { is_public: true },
+          orderBy: [{ display_order: "asc" }, { created_at: "asc" }],
+          select: {
+            id: true,
+            is_public: true,
+            display_order: true,
+            dataset_version: true,
+            database: {
+              select: {
+                id: true,
+                name: true,
+                mysqlDbName: true,
+                status: true,
+                tableCount: true,
+                rowCount: true,
+              },
+            },
+          },
+        },
       },
     });
 

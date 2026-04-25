@@ -10,10 +10,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "node --test lib/sql-runner/__tests__/*.mjs",
     "seed": "node prisma/seed.js",
     "seed-leaderboard": "node scripts/seed-leaderboard.js",
     "create-admin": "node scripts/create-admin.js",
     "verify-email": "node scripts/verify-email.js",
+    "cheating-heuristics": "node scripts/cheating-heuristics.js",
     "shell": "node lib/shell-server.js",
     "dev:full": "concurrently \"npm run dev\" \"npm run shell\""
   },
@@ -54,8 +56,8 @@
     "lucide-react": "^0.454.0",
     "mysql2": "^3.14.4",
     "next": "^15.0.0",
+    "node-sql-parser": "^5.4.0",
     "nodemailer": "^7.0.5",
-    "pg": "^8.16.3",
     "prisma": "^6.0.1",
     "react": "^18.3.0",
     "react-color": "^2.19.3",
@@ -75,8 +77,7 @@
     "xterm-addon-web-links": "^0.9.0"
   },
   "optionalDependencies": {
-    "node-pty": "^1.0.0",
-    "sqlite3": "^5.1.7"
+    "node-pty": "^1.0.0"
   },
   "devDependencies": {
     "@types/react": "19.2.14",

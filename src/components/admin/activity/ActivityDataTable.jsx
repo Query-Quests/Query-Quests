@@ -1,100 +1,75 @@
 "use client";
 
-import { useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
-import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
-import {
-  LogIn,
-  LogOut,
-  Trophy,
-  Play,
-  UserPlus,
-  UserMinus,
-  Settings,
-  Key,
-  Shield,
-  Edit,
-  Activity,
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { Activity, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
-// Activity type configuration with icons and colors
+// Activity type configuration: label + colored pill (bg + text).
+// Colors come straight from the Pencil design (event chips).
 const activityConfig = {
   login: {
-    label: "Login",
-    icon: LogIn,
-    variant: "default",
+    label: "LOGIN",
+    pillBg: "#dbeafe",
+    pillText: "#1d4ed8",
   },
   logout: {
-    label: "Logout",
-    icon: LogOut,
-    variant: "secondary",
+    label: "LOGOUT",
+    pillBg: "#f3f4f6",
+    pillText: "#374151",
   },
   challenge_start: {
-    label: "Challenge Started",
-    icon: Play,
-    variant: "outline",
+    label: "CHALLENGE_STARTED",
+    pillBg: "#e0f2fe",
+    pillText: "#075985",
   },
   challenge_complete: {
-    label: "Challenge Completed",
-    icon: Trophy,
-    variant: "default",
+    label: "CHALLENGE_SOLVED",
+    pillBg: "#ecfdf5",
+    pillText: "#15934d",
   },
   user_created: {
-    label: "User Created",
-    icon: UserPlus,
-    variant: "default",
+    label: "USER_CREATED",
+    pillBg: "#dbeafe",
+    pillText: "#1d4ed8",
   },
   user_updated: {
-    label: "User Updated",
-    icon: Edit,
-    variant: "secondary",
+    label: "USER_UPDATED",
+    pillBg: "#fef3c7",
+    pillText: "#854d0e",
   },
   user_deleted: {
-    label: "User Deleted",
-    icon: UserMinus,
-    variant: "destructive",
+    label: "USER_DELETED",
+    pillBg: "#fee2e2",
+    pillText: "#991b1b",
   },
   settings_changed: {
-    label: "Settings Changed",
-    icon: Settings,
-    variant: "secondary",
+    label: "SETTINGS_CHANGED",
+    pillBg: "#fef3c7",
+    pillText: "#854d0e",
   },
   password_changed: {
-    label: "Password Changed",
-    icon: Key,
-    variant: "outline",
+    label: "PASSWORD_CHANGED",
+    pillBg: "#fee2e2",
+    pillText: "#991b1b",
   },
   role_changed: {
-    label: "Role Changed",
-    icon: Shield,
-    variant: "default",
+    label: "ROLE_CHANGED",
+    pillBg: "#fef3c7",
+    pillText: "#854d0e",
   },
 };
 
 function getActivityConfig(type) {
-  return activityConfig[type] || {
-    label: type || "Unknown",
-    icon: Activity,
-    variant: "secondary",
-  };
-}
-
-function formatDateTime(dateString) {
-  if (!dateString) return "-";
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(date);
+  return (
+    activityConfig[type] || {
+      label: (type || "EVENT").toUpperCase(),
+      pillBg: "#f3f4f6",
+      pillText: "#374151",
+    }
+  );
 }
 
 function formatRelativeTime(dateString) {
   if (!dateString) return "";
-
   const date = new Date(dateString);
   const now = new Date();
   const diffInSeconds = Math.floor((now - date) / 1000);
@@ -104,137 +79,151 @@ function formatRelativeTime(dateString) {
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
   if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
 
-  return formatDateTime(dateString);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
 }
 
-export function ActivityDataTable({ data, isLoading = false, pageSize = 10 }) {
-  const columns = useMemo(
-    () => [
-      {
-        accessorKey: "type",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Activity" />
-        ),
-        cell: ({ row }) => {
-          const type = row.getValue("type");
-          const config = getActivityConfig(type);
-          const Icon = config.icon;
+export function ActivityDataTable({ data, isLoading = false, pageSize = 25 }) {
+  const [pageIndex, setPageIndex] = useState(0);
 
-          return (
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-md bg-muted">
-                <Icon className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <Badge variant={config.variant} className="text-xs">
-                {config.label}
-              </Badge>
-            </div>
-          );
-        },
-      },
-      {
-        accessorKey: "user",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="User" />
-        ),
-        cell: ({ row }) => {
-          const user = row.original.user;
-          if (!user) return <span className="text-muted-foreground">-</span>;
+  const total = data.length;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const safePageIndex = Math.min(pageIndex, pageCount - 1);
 
-          return (
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                <span className="text-xs font-medium text-primary-foreground">
-                  {user.name?.charAt(0) || user.email?.charAt(0) || "?"}
-                </span>
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{user.name || "Unknown"}</p>
-                <p className="text-xs text-muted-foreground truncate hidden sm:block">
-                  {user.email}
-                </p>
-              </div>
-            </div>
-          );
-        },
-      },
-      {
-        accessorKey: "description",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Description" />
-        ),
-        cell: ({ row }) => {
-          const description = row.getValue("description");
-          return (
-            <p className="text-sm text-muted-foreground max-w-[300px] truncate">
-              {description || "-"}
-            </p>
-          );
-        },
-        enableSorting: false,
-      },
-      {
-        accessorKey: "ipAddress",
-        header: "IP Address",
-        cell: ({ row }) => {
-          const ip = row.getValue("ipAddress");
-          return (
-            <code className="text-xs bg-muted px-1.5 py-0.5 rounded hidden lg:inline-block">
-              {ip || "-"}
-            </code>
-          );
-        },
-        enableSorting: false,
-      },
-      {
-        accessorKey: "createdAt",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Time" />
-        ),
-        cell: ({ row }) => {
-          const date = row.getValue("createdAt");
-          return (
-            <div className="text-right">
-              <p className="text-sm">{formatRelativeTime(date)}</p>
-              <p className="text-xs text-muted-foreground hidden sm:block">
-                {formatDateTime(date)}
-              </p>
-            </div>
-          );
-        },
-      },
-    ],
-    []
-  );
+  const pageRows = useMemo(() => {
+    const start = safePageIndex * pageSize;
+    return data.slice(start, start + pageSize);
+  }, [data, safePageIndex, pageSize]);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">Loading activity...</p>
-        </div>
-      </div>
-    );
-  }
+  const showingFrom = total === 0 ? 0 : safePageIndex * pageSize + 1;
+  const showingTo = Math.min(total, (safePageIndex + 1) * pageSize);
 
   return (
-    <DataTable
-      columns={columns}
-      data={data}
-      enablePagination={true}
-      enableSorting={true}
-      pageSize={pageSize}
-      emptyState={
-        <div className="flex flex-col items-center justify-center py-8">
-          <Activity className="h-8 w-8 text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground">No activity found</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Activity will appear here as users interact with the platform
-          </p>
+    <div className="flex flex-col gap-[14px] w-full">
+      {/* Table card */}
+      <div className="bg-white border border-gray-200 rounded-[12px] shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        {/* Header row */}
+        <div className="grid grid-cols-[220px_160px_minmax(0,1fr)_180px] gap-4 px-5 py-[13px] bg-gray-50 border-b border-gray-200">
+          <span className="text-[11px] font-bold text-gray-500 tracking-[1px]">
+            EVENT
+          </span>
+          <span className="text-[11px] font-bold text-gray-500 tracking-[1px]">
+            ACTOR
+          </span>
+          <span className="text-[11px] font-bold text-gray-500 tracking-[1px]">
+            DETAILS
+          </span>
+          <span className="text-[11px] font-bold text-gray-500 tracking-[1px]">
+            TIMESTAMP
+          </span>
         </div>
-      }
-    />
+
+        {/* Body */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-5 w-5 animate-spin text-[#19aa59]" />
+          </div>
+        ) : pageRows.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 px-6">
+            <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center mb-3">
+              <Activity className="h-5 w-5 text-gray-400" />
+            </div>
+            <p className="text-sm font-semibold text-[#030914] mb-1">
+              No activity found
+            </p>
+            <p className="text-xs text-gray-500">
+              Activity will appear here as users interact with the platform
+            </p>
+          </div>
+        ) : (
+          pageRows.map((row, idx) => {
+            const cfg = getActivityConfig(row.type);
+            const user = row.user || {};
+            return (
+              <div
+                key={row.id ?? idx}
+                className={
+                  "grid grid-cols-[220px_160px_minmax(0,1fr)_180px] gap-4 items-center px-5 py-4" +
+                  (idx < pageRows.length - 1 ? " border-b border-gray-200" : "")
+                }
+              >
+                {/* EVENT pill */}
+                <div className="flex items-center">
+                  <span
+                    className="inline-flex items-center px-[10px] py-[4px] rounded-full text-[10px] font-bold tracking-[1px]"
+                    style={{
+                      backgroundColor: cfg.pillBg,
+                      color: cfg.pillText,
+                    }}
+                  >
+                    {cfg.label}
+                  </span>
+                </div>
+
+                {/* ACTOR */}
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium text-[#030914] truncate">
+                    {user.name || user.email || "Unknown"}
+                  </p>
+                </div>
+
+                {/* DETAILS */}
+                <div className="min-w-0">
+                  <p className="text-[13px] text-gray-500 truncate">
+                    {row.description || "-"}
+                  </p>
+                </div>
+
+                {/* TIMESTAMP */}
+                <div>
+                  <p
+                    className="text-[12px] text-gray-500"
+                    style={{ fontFamily: "var(--font-geist-mono), monospace" }}
+                  >
+                    {formatRelativeTime(row.createdAt)}
+                  </p>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Pagination card */}
+      <div className="flex items-center justify-between bg-white border border-gray-200 rounded-[12px] shadow-[0_1px_3px_rgba(0,0,0,0.04)] px-5 py-[14px]">
+        <span className="text-[12px] text-gray-500">
+          {total === 0
+            ? "No events"
+            : `Showing ${showingFrom} to ${showingTo} of ${total.toLocaleString()} events`}
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPageIndex((i) => Math.max(0, i - 1))}
+            disabled={safePageIndex === 0}
+            className="inline-flex items-center gap-1.5 h-[28px] px-[10px] rounded-[8px] text-[12px] font-medium text-[#030914] bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            Previous
+          </button>
+          <span className="text-[12px] text-gray-500 px-2">
+            Page {safePageIndex + 1} of {pageCount}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPageIndex((i) => Math.min(pageCount - 1, i + 1))}
+            disabled={safePageIndex >= pageCount - 1}
+            className="inline-flex items-center gap-1.5 h-[28px] px-[10px] rounded-[8px] text-[12px] font-medium text-[#030914] bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

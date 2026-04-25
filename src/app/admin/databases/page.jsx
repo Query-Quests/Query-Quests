@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw } from "lucide-react";
+import { Upload, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
@@ -219,35 +218,39 @@ export default function DatabasesManagement() {
   };
 
   return (
-    <div className="space-y-8 w-full">
+    <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">SQL Databases</h1>
-          <p className="text-muted-foreground mt-1">
-            Upload and manage SQL databases for challenges
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-[28px] font-bold text-[#030914] tracking-[-1px] leading-tight">
+            Databases
+          </h1>
+          <p className="text-sm text-gray-500">
+            Sandbox databases available to students
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
-            variant="outline"
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
             onClick={() => fetchDatabases(false)}
-            className="w-full sm:w-auto"
+            className="inline-flex items-center justify-center gap-1.5 h-10 px-3 rounded-lg border border-gray-200 bg-white text-sm font-semibold text-[#030914] hover:bg-gray-50 transition-colors"
+            aria-label="Refresh"
           >
-            <RefreshCw className="mr-2 h-4 w-4" />
+            <RefreshCw className="h-3.5 w-3.5" />
             Refresh
-          </Button>
-          <Button
+          </button>
+          <button
+            type="button"
             onClick={() => setIsUploadDialogOpen(true)}
-            className="w-full sm:w-auto"
+            className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-lg bg-[#19aa59] hover:bg-[#15934d] text-white text-[13px] font-bold transition-colors"
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Upload Database
-          </Button>
+            <Upload className="h-3.5 w-3.5" />
+            Upload SQL dump
+          </button>
         </div>
       </div>
 
-      {/* Databases Data Table */}
+      {/* Databases grid + filters */}
       <DatabasesDataTable
         data={databases}
         isLoading={isLoading}
@@ -267,6 +270,7 @@ export default function DatabasesManagement() {
         currentPage={currentPage}
         onPageChange={handlePageChange}
         currentUser={user}
+        onUploadClick={() => setIsUploadDialogOpen(true)}
       />
 
       {/* Upload Database Dialog */}

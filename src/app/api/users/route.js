@@ -56,6 +56,8 @@ export async function GET(request) {
         solvedChallenges: true,
         totalScore: true,
         last_login: true,
+        is_active: true,
+        archived_at: true,
         institution_id: true,
         institution: {
           select: {

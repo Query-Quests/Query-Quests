@@ -2,14 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Database,
-  Plus,
-  TrendingUp,
-  Target,
-} from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import { ConfirmModal } from "@/components/modals";
@@ -44,7 +38,7 @@ export default function ChallengesManagement() {
     hasPrevPage: false,
   });
 
-  // Stats state
+  // Stats state (kept for header subtitle)
   const [stats, setStats] = useState({
     totalChallenges: 0,
     totalSolves: 0,
@@ -313,108 +307,58 @@ export default function ChallengesManagement() {
   if (isLoading && challenges.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">Loading challenges...</p>
-        </div>
+        <Loader2 className="h-6 w-6 animate-spin text-[#19aa59]" />
       </div>
     );
   }
 
+  const totalCount =
+    pagination.totalChallenges || stats.totalChallenges || challenges.length;
+
   return (
-    <div className="space-y-6 w-full">
+    <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Challenges Management</h1>
-          <p className="text-muted-foreground">
-            Manage SQL challenges and their difficulty levels
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-[28px] font-bold text-[#030914] tracking-[-1px] leading-tight">
+            Challenges
+          </h1>
+          <p className="text-sm text-gray-500">
+            {totalCount} {totalCount === 1 ? "challenge" : "challenges"}
+            {stats.totalSolves > 0 && (
+              <> &middot; {stats.totalSolves.toLocaleString()} solves</>
+            )}
           </p>
         </div>
         <Button
           onClick={() => router.push("/admin/challenges/create")}
-          className="w-full sm:w-auto"
+          className="bg-[#19aa59] hover:bg-[#15934d] text-white text-[13px] font-bold px-4 py-2.5 h-auto rounded-[10px] gap-2 w-full sm:w-auto"
         >
-          <Plus className="mr-2 h-4 w-4" />
-          Create Challenge
+          <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+          New challenge
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <Database className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-medium">Total Challenges</span>
-            </div>
-            <p className="text-2xl font-bold">{stats.totalChallenges || 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <TrendingUp className="h-4 w-4 text-green-600" />
-              <span className="text-sm font-medium">Total Solves</span>
-            </div>
-            <p className="text-2xl font-bold">{stats.totalSolves || 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <Target className="h-4 w-4 text-purple-600" />
-              <span className="text-sm font-medium">Avg Difficulty</span>
-            </div>
-            <p className="text-2xl font-bold">{stats.avgDifficulty || 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <TrendingUp className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-medium">Total Points</span>
-            </div>
-            <p className="text-2xl font-bold">{stats.totalPoints || 0}</p>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Data Table */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2">
-            Challenges
-            {isSearching && (
-              <span className="text-sm font-normal text-muted-foreground flex items-center gap-1">
-                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary" />
-                Searching...
-              </span>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ChallengesDataTable
-            data={challenges}
-            institutions={institutions}
-            isLoading={isLoading}
-            isSearching={isSearching}
-            totalCount={pagination.totalChallenges}
-            globalFilter={searchTerm}
-            onGlobalFilterChange={handleSearchChange}
-            levelFilter={levelFilter}
-            onLevelFilterChange={handleLevelFilterChange}
-            institutionFilter={institutionFilter}
-            onInstitutionFilterChange={handleInstitutionFilterChange}
-            onEdit={handleEditChallenge}
-            onDelete={handleDeleteChallenge}
-            onBulkDelete={handleBulkDelete}
-            isTeacher={user?.isTeacher && !user?.isAdmin}
-            userInstitutionId={user?.institution_id}
-            userInstitutionName={user?.institution?.name}
-          />
-        </CardContent>
-      </Card>
+      <ChallengesDataTable
+        data={challenges}
+        institutions={institutions}
+        isLoading={isLoading}
+        isSearching={isSearching}
+        totalCount={pagination.totalChallenges}
+        globalFilter={searchTerm}
+        onGlobalFilterChange={handleSearchChange}
+        levelFilter={levelFilter}
+        onLevelFilterChange={handleLevelFilterChange}
+        institutionFilter={institutionFilter}
+        onInstitutionFilterChange={handleInstitutionFilterChange}
+        onEdit={handleEditChallenge}
+        onDelete={handleDeleteChallenge}
+        onBulkDelete={handleBulkDelete}
+        isTeacher={user?.isTeacher && !user?.isAdmin}
+        userInstitutionId={user?.institution_id}
+        userInstitutionName={user?.institution?.name}
+      />
 
       {/* Edit Challenge Dialog */}
       <EditChallengeDialog

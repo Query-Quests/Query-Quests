@@ -9,10 +9,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -187,28 +184,34 @@ export default function UploadDatabaseDialog({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
+  const labelCls = "text-[12px] font-bold text-[#030914] uppercase tracking-[0.4px]";
+  const fieldCls =
+    "w-full h-10 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-[#19aa59] focus:ring-2 focus:ring-[#19aa59]/20";
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Upload SQL Database</DialogTitle>
-          <DialogDescription>
-            Upload a .sql file to create a new challenge database. The file will
+      <DialogContent className="sm:max-w-[520px] rounded-xl border-gray-200 bg-white p-6 gap-5">
+        <DialogHeader className="gap-1">
+          <DialogTitle className="text-[20px] font-bold text-[#030914] tracking-[-0.3px]">
+            Upload SQL dump
+          </DialogTitle>
+          <DialogDescription className="text-[13px] text-gray-500 leading-[1.5]">
+            Upload a .sql file to create a new sandbox database. The file will
             be processed and made available for challenges.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {/* File Upload */}
-          <div className="space-y-2">
-            <Label>SQL File</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label className={labelCls}>SQL file</Label>
             <div
-              className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
                 dragActive
-                  ? "border-primary bg-primary/5"
+                  ? "border-[#19aa59] bg-[#19aa59]/5"
                   : errors.file
                   ? "border-red-300 bg-red-50"
-                  : "border-gray-200 hover:border-primary/50"
+                  : "border-gray-200 hover:border-[#19aa59]/50 hover:bg-gray-50"
               }`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
@@ -225,92 +228,107 @@ export default function UploadDatabaseDialog({
               />
 
               {formData.file ? (
-                <div className="flex items-center justify-center gap-2">
-                  <File className="h-8 w-8 text-primary" />
-                  <div className="text-left">
-                    <p className="font-medium">{formData.file.name}</p>
-                    <p className="text-sm text-muted-foreground">
+                <div className="flex items-center justify-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-[#030914] flex items-center justify-center shrink-0">
+                    <File className="h-5 w-5 text-[#19aa59]" />
+                  </div>
+                  <div className="text-left min-w-0">
+                    <p
+                      className="text-sm font-semibold text-[#030914] truncate"
+                      style={{ fontFamily: "var(--font-geist-mono), monospace" }}
+                    >
+                      {formData.file.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
                       {formatFileSize(formData.file.size)}
                     </p>
                   </div>
-                  <Button
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="ml-2"
                     onClick={(e) => {
                       e.stopPropagation();
                       removeFile();
                     }}
+                    className="ml-2 inline-flex items-center justify-center h-8 w-8 rounded-md border border-gray-200 bg-white text-gray-500 hover:bg-gray-50"
+                    aria-label="Remove file"
                   >
                     <X className="h-4 w-4" />
-                  </Button>
+                  </button>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <Upload className="h-10 w-10 mx-auto text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Drag and drop your SQL file here, or click to browse
+                <div className="flex flex-col items-center gap-2">
+                  <div className="h-10 w-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                    <Upload className="h-5 w-5 text-gray-500" />
+                  </div>
+                  <p className="text-sm text-[#030914] font-semibold">
+                    Drop your SQL file here, or click to browse
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Max file size: 500MB
-                  </p>
+                  <p className="text-xs text-gray-500">Max file size: 500MB</p>
                 </div>
               )}
             </div>
             {errors.file && (
-              <p className="text-sm text-red-500 flex items-center gap-1">
-                <AlertCircle className="h-4 w-4" />
+              <p className="text-xs text-red-600 flex items-center gap-1">
+                <AlertCircle className="h-3.5 w-3.5" />
                 {errors.file}
               </p>
             )}
           </div>
 
           {/* Name */}
-          <div className="space-y-2">
-            <Label htmlFor="name">Database Name</Label>
-            <Input
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="name" className={labelCls}>
+              Database name
+            </Label>
+            <input
               id="name"
               value={formData.name}
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
-              placeholder="e.g., Company Sales Database"
+              placeholder="e.g., company_sales"
+              className={fieldCls}
+              style={{ fontFamily: "var(--font-geist-mono), monospace" }}
             />
             {errors.name && (
-              <p className="text-sm text-red-500">{errors.name}</p>
+              <p className="text-xs text-red-600">{errors.name}</p>
             )}
           </div>
 
           {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description">Description (Optional)</Label>
-            <Textarea
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="description" className={labelCls}>
+              Description (optional)
+            </Label>
+            <textarea
               id="description"
               value={formData.description}
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
               }
-              placeholder="Describe the database contents and purpose..."
+              placeholder="Describe the database contents and purpose…"
               rows={3}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-[#19aa59] focus:ring-2 focus:ring-[#19aa59]/20 resize-y"
             />
           </div>
 
           {/* Institution */}
           {!isTeacher && (
-            <div className="space-y-2">
-              <Label htmlFor="institution">Institution (Optional)</Label>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="institution" className={labelCls}>
+                Institution (optional)
+              </Label>
               <Select
                 value={formData.institution_id}
                 onValueChange={(value) =>
                   setFormData({ ...formData, institution_id: value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-10 rounded-lg border-gray-200 bg-white text-sm">
                   <SelectValue placeholder="Select institution" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No Institution (Global)</SelectItem>
+                  <SelectItem value="none">No institution (global)</SelectItem>
                   {institutions.map((inst) => (
                     <SelectItem key={inst.id} value={inst.id}>
                       {inst.name}
@@ -321,27 +339,31 @@ export default function UploadDatabaseDialog({
             </div>
           )}
 
-          <DialogFooter>
-            <Button
+          <DialogFooter className="pt-2 gap-2">
+            <button
               type="button"
-              variant="outline"
               onClick={() => handleOpenChange(false)}
+              className="inline-flex items-center justify-center h-10 px-4 rounded-lg border border-gray-200 bg-white text-sm font-semibold text-[#030914] hover:bg-gray-50"
             >
               Cancel
-            </Button>
-            <Button type="submit" disabled={isUploading}>
+            </button>
+            <button
+              type="submit"
+              disabled={isUploading}
+              className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-lg bg-[#19aa59] hover:bg-[#15934d] text-white text-[13px] font-bold disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            >
               {isUploading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading...
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Uploading…
                 </>
               ) : (
                 <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload Database
+                  <Upload className="h-3.5 w-3.5" />
+                  Upload database
                 </>
               )}
-            </Button>
+            </button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { generateExpectedResult } from "@/lib/query-validator";
+import { captureExpectedResult } from "@/lib/sql-runner/runner";
+import { getUserFromCookies } from "@/lib/auth-server";
 
 /**
  * POST /api/challenges/[id]/preview-result
@@ -10,22 +11,21 @@ export async function POST(request, { params }) {
   try {
     const { id } = await params;
     const data = await request.json();
-    const { query, user_id, database_id } = data;
+    const { query, database_id } = data;
 
-    // Validate required fields
-    if (!query || !user_id) {
+    if (!query) {
       return NextResponse.json(
-        { error: "Missing required fields: query and user_id" },
+        { error: "Missing required field: query" },
         { status: 400 }
       );
     }
 
-    // Verify user is teacher or admin
-    const user = await prisma.user.findUnique({
-      where: { id: user_id },
-    });
+    const user = await getUserFromCookies(request.cookies);
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
 
-    if (!user || (!user.isTeacher && !user.isAdmin)) {
+    if (!user.isTeacher && !user.isAdmin) {
       return NextResponse.json(
         { error: "Only teachers and admins can preview query results" },
         { status: 403 }
@@ -87,7 +87,10 @@ export async function POST(request, { params }) {
     }
 
     // Execute the query and generate result
-    const result = await generateExpectedResult(databaseName, query);
+    const result = await captureExpectedResult({
+      sql: query,
+      databaseName,
+    });
 
     return NextResponse.json({
       success: true,

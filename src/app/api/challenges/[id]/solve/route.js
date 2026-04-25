@@ -1,17 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getUserFromCookies } from "@/lib/auth-server";
+
+// A passing /validate must have run within this window for /solve to award
+// points. Stops "validate once, replay /solve later after the dataset moves"
+// and forces the student to actually re-prove their answer if they walk away
+// for half an hour.
+const RECENT_ATTEMPT_WINDOW_MS = 5 * 60 * 1000;
 
 export async function POST(request, { params }) {
   try {
     const { id: challengeId } = await params;
-    const { userId, validated } = await request.json();
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: "User ID is required" },
-        { status: 400 }
-      );
+    const user = await getUserFromCookies(request.cookies);
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
+    const userId = user.id;
 
     // Verify the challenge exists
     const challenge = await prisma.challenge.findUnique({
@@ -21,18 +26,6 @@ export async function POST(request, { params }) {
     if (!challenge) {
       return NextResponse.json(
         { error: "Challenge not found" },
-        { status: 404 }
-      );
-    }
-
-    // Verify the user exists
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
         { status: 404 }
       );
     }
@@ -58,24 +51,26 @@ export async function POST(request, { params }) {
       });
     }
 
-    // Optional: Verify that the user has a correct query attempt
-    // This ensures they can't just call the solve endpoint directly
-    if (validated !== false && challenge.database_id) {
-      const correctAttempt = await prisma.queryAttempt.findFirst({
-        where: {
-          user_id: userId,
-          challenge_id: challengeId,
-          isCorrect: true,
-        },
-        orderBy: { timestamp: 'desc' },
-      });
+    // Always require a recent passing /validate. The previous gate was opt-in
+    // via a client-supplied `validated` flag (and reversed: `validated !== false`
+    // skipped the check), which a malicious client could trivially bypass by
+    // posting `{ validated: false }`.
+    const cutoff = new Date(Date.now() - RECENT_ATTEMPT_WINDOW_MS);
+    const correctAttempt = await prisma.queryAttempt.findFirst({
+      where: {
+        user_id: userId,
+        challenge_id: challengeId,
+        isCorrect: true,
+        timestamp: { gte: cutoff },
+      },
+      orderBy: { timestamp: 'desc' },
+    });
 
-      if (!correctAttempt) {
-        return NextResponse.json(
-          { error: "No validated correct answer found. Please solve the challenge first." },
-          { status: 400 }
-        );
-      }
+    if (!correctAttempt) {
+      return NextResponse.json(
+        { error: "No recent validated correct answer found. Please run a passing query first." },
+        { status: 400 }
+      );
     }
 
     const pointsAwarded = challenge.current_score;

@@ -1,11 +1,26 @@
 -- MySQL initialization script for Query Quest Challenge Database
--- This runs on the mysql-challenges container on first startup
+-- This runs on the mysql-challenges container on first startup.
+--
+-- NOTE: docker-entrypoint-initdb.d only runs on a *fresh* data
+-- volume. To apply changes (such as the WITH MAX_* clauses below)
+-- against an existing instance, run docs/migrations/phase-c-mysql.sql.
 
--- Read-only user for students (SELECT only)
-CREATE USER IF NOT EXISTS 'student_readonly'@'%' IDENTIFIED BY 'student_readonly_pass';
+-- Read-only user for students (SELECT only).
+-- Per-user resource limits constrain a misbehaving / hostile student
+-- without affecting the application as a whole:
+--   MAX_QUERIES_PER_HOUR    upper bound on submission rate
+--   MAX_USER_CONNECTIONS    matches the Node connection pool size
+--                           (mysql-connection.js: connectionLimit=50)
+CREATE USER IF NOT EXISTS 'student_readonly'@'%'
+  IDENTIFIED BY 'student_readonly_pass'
+  WITH MAX_QUERIES_PER_HOUR 5000 MAX_USER_CONNECTIONS 50;
 
--- Teacher user for preview queries (SELECT only, but for different purposes)
-CREATE USER IF NOT EXISTS 'teacher_preview'@'%' IDENTIFIED BY 'teacher_preview_pass';
+-- Teacher user for preview queries (SELECT only).
+-- Higher limits — teachers run reference queries during challenge
+-- authoring and dataset attach, which is bursty.
+CREATE USER IF NOT EXISTS 'teacher_preview'@'%'
+  IDENTIFIED BY 'teacher_preview_pass'
+  WITH MAX_QUERIES_PER_HOUR 20000 MAX_USER_CONNECTIONS 20;
 
 -- Admin user for database management (full privileges)
 CREATE USER IF NOT EXISTS 'db_admin'@'%' IDENTIFIED BY 'db_admin_pass';

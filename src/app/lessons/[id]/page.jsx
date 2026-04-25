@@ -1,294 +1,433 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import dynamic from "next/dynamic";
 import Header from "@/components/header";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
-  BookOpen,
-  Calendar,
-  User,
   ArrowLeft,
   ArrowRight,
-  Target,
-  Clock,
-  ChevronRight,
-  Home
+  ArrowUpRight,
+  Check,
+  Terminal,
 } from "lucide-react";
-import MDEditor from '@uiw/react-md-editor';
-import Link from "next/link";
 
-export default function LessonDetail() {
-  const [lesson, setLesson] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const MarkdownPreview = dynamic(
+  () => import("@uiw/react-md-editor").then((m) => m.default.Markdown),
+  { ssr: false }
+);
+
+const FONT_STYLE = {
+  fontFamily: "var(--font-geist-sans), Geist, Arial, sans-serif",
+};
+
+const MONO_STYLE = {
+  fontFamily: "var(--font-geist-mono), 'Geist Mono', ui-monospace, monospace",
+};
+
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+function firstSqlBlock(content) {
+  if (typeof content !== "string") return null;
+  const m = content.match(/```sql\s*([\s\S]*?)```/i);
+  return m ? m[1].trim() : null;
+}
+
+export default function LessonDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const id = params?.id;
 
-  const fetchLesson = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/lessons/${params.id}`);
-      if (response.ok) {
-        const lessonData = await response.json();
-        setLesson(lessonData);
-      } else {
-        setError("Lesson not found");
-      }
-    } catch (error) {
-      console.error("Error fetching lesson:", error);
-      setError("Failed to load lesson");
-    } finally {
-      setLoading(false);
-    }
-  }, [params.id]);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [completing, setCompleting] = useState(false);
 
   useEffect(() => {
-    fetchLesson();
-  }, [fetchLesson]);
+    if (!id) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetch(`/api/lessons/${id}`, { credentials: "include" })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(r.status === 404 ? "Lesson not found" : "Failed to load lesson");
+        return r.json();
+      })
+      .then((json) => {
+        if (cancelled) return;
+        setData(json);
+        // Fire-and-forget: mark started.
+        fetch(`/api/lessons/${id}/progress`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "started" }),
+        }).catch(() => {});
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e.message || "Failed to load lesson");
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
+  const siblings = data?.siblings ?? [];
+  const moduleProgress = data?.moduleProgress ?? {};
+  const moduleTitle = data?.module?.title ?? null;
+  const moduleOrder = data?.module?.order ?? null;
+
+  const currentIndex = useMemo(
+    () => siblings.findIndex((s) => s.id === id),
+    [siblings, id]
+  );
+  const total = siblings.length;
+  const prevSibling = currentIndex > 0 ? siblings[currentIndex - 1] : null;
+  const nextSibling =
+    currentIndex >= 0 && currentIndex < total - 1
+      ? siblings[currentIndex + 1]
+      : null;
+
+  const sqlSeed = useMemo(() => firstSqlBlock(data?.content), [data?.content]);
+  const playgroundHref = sqlSeed
+    ? `/playground?seed=${encodeURIComponent(sqlSeed)}`
+    : "/playground";
+
+  async function handleNext() {
+    if (completing) return;
+    setCompleting(true);
+    try {
+      await fetch(`/api/lessons/${id}/progress`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      });
+    } catch {
+      // Non-blocking; navigation still proceeds.
+    }
+    setCompleting(false);
+    if (nextSibling) {
+      router.push(`/lessons/${nextSibling.id}`);
+    } else {
+      router.push("/lessons");
+    }
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-[#f9f9f9]" style={FONT_STYLE}>
         <Header />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-2 border-[#19aa59] border-t-transparent mx-auto mb-4"></div>
-              <p className="text-lg text-gray-500">Loading lesson...</p>
-            </div>
-          </div>
+        <div className="max-w-7xl mx-auto px-8 py-16 text-gray-500 text-sm">
+          Loading lesson…
         </div>
       </div>
     );
   }
 
-  if (error || !lesson) {
+  if (error || !data) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-[#f9f9f9]" style={FONT_STYLE}>
         <Header />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <Card className="border-0 shadow-sm">
-            <CardContent className="py-16">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <BookOpen className="h-8 w-8 text-gray-400" />
-                </div>
-                <h1 className="text-2xl font-bold text-[#030914] mb-2">Lesson Not Found</h1>
-                <p className="text-gray-500 mb-6 max-w-md mx-auto">
-                  {error || "The lesson you're looking for doesn't exist or may have been removed."}
-                </p>
-                <Button asChild className="bg-[#19aa59] hover:bg-[#15934d] text-white">
-                  <Link href="/lessons">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to Lessons
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="max-w-3xl mx-auto px-8 py-16 text-center">
+          <p className="text-[15px] text-gray-700 mb-4">{error || "Lesson not found"}</p>
+          <Link
+            href="/lessons"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[var(--accent-green)] text-white text-[13px] font-semibold hover:bg-[#15934d]"
+          >
+            Back to lessons
+          </Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f9f9f9] text-[var(--navy-dark)]" style={FONT_STYLE}>
       <Header />
 
-      {/* Breadcrumb */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <nav className="flex items-center gap-2 text-sm">
-            <Link href="/home" className="text-gray-500 hover:text-[#19aa59] transition-colors flex items-center gap-1">
-              <Home className="h-4 w-4" />
-              Home
-            </Link>
-            <ChevronRight className="h-4 w-4 text-gray-300" />
-            <Link href="/lessons" className="text-gray-500 hover:text-[#19aa59] transition-colors">
-              Lessons
-            </Link>
-            <ChevronRight className="h-4 w-4 text-gray-300" />
-            <span className="text-[#030914] font-medium truncate max-w-[200px]">
-              {lesson.title}
-            </span>
-          </nav>
-        </div>
-      </div>
+      <div className="flex">
+        <Sidebar
+          moduleTitle={moduleTitle}
+          moduleOrder={moduleOrder}
+          lessonTitle={data.title}
+          siblings={siblings}
+          currentId={id}
+          moduleProgress={moduleProgress}
+        />
 
-      {/* Lesson Header */}
-      <section className="bg-white border-b border-gray-100">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-start gap-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-[#19aa59] to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
-              <BookOpen className="h-7 w-7 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl lg:text-3xl font-bold text-[#030914] mb-2">
-                {lesson.title}
-              </h1>
-              {lesson.description && (
-                <p className="text-gray-500 text-lg mb-4">
-                  {lesson.description}
-                </p>
-              )}
-              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
-                <div className="flex items-center gap-1.5">
-                  <User className="h-4 w-4" />
-                  <span>By <span className="text-[#030914] font-medium">{lesson.creator.name}</span></span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="h-4 w-4" />
-                  <span>{formatDate(lesson.created_at)}</span>
-                </div>
-              </div>
-            </div>
+        <main className="flex-1 px-16 py-10 max-w-[840px]">
+          <p
+            className="text-[11px] font-bold text-gray-500 uppercase mb-4"
+            style={{ letterSpacing: "1.2px" }}
+          >
+            {currentIndex >= 0 && total > 0
+              ? `Lesson ${pad2(currentIndex + 1)} of ${pad2(total)}`
+              : `Lesson`}
+          </p>
+
+          <h1 className="text-[30px] font-bold text-[var(--navy-dark)] tracking-[-0.6px] mb-3">
+            {data.title}
+          </h1>
+
+          {data.description && (
+            <p className="text-[15px] text-gray-500 leading-[1.55] mb-8">
+              {data.description}
+            </p>
+          )}
+
+          <div className="lesson-body" data-color-mode="light">
+            <MarkdownPreview source={data.content || ""} />
           </div>
-        </div>
-      </section>
 
-      {/* Lesson Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card className="border-0 shadow-sm overflow-hidden">
-          <CardContent className="p-6 sm:p-8 lg:p-10">
-            <div className="prose prose-lg max-w-none
-              [&_.w-md-editor]:!bg-transparent
-              [&_.w-md-editor]:!text-gray-700
-              [&_pre]:!bg-[#030914]
-              [&_pre]:!text-gray-100
-              [&_pre]:!rounded-xl
-              [&_pre]:!p-4
-              [&_pre]:!overflow-x-auto
-              [&_code]:!bg-gray-100
-              [&_code]:!text-[#19aa59]
-              [&_code]:!px-1.5
-              [&_code]:!py-0.5
-              [&_code]:!rounded
-              [&_code]:!text-sm
-              [&_code]:!font-mono
-              [&_pre_code]:!bg-transparent
-              [&_pre_code]:!text-gray-100
-              [&_pre_code]:!p-0
-              [&_h1]:!text-3xl
-              [&_h1]:!font-bold
-              [&_h1]:!text-[#030914]
-              [&_h1]:!border-b
-              [&_h1]:!border-gray-200
-              [&_h1]:!pb-3
-              [&_h1]:!mb-6
-              [&_h2]:!text-2xl
-              [&_h2]:!font-semibold
-              [&_h2]:!text-[#030914]
-              [&_h2]:!mt-10
-              [&_h2]:!mb-4
-              [&_h3]:!text-xl
-              [&_h3]:!font-semibold
-              [&_h3]:!text-[#030914]
-              [&_h3]:!mt-8
-              [&_h3]:!mb-3
-              [&_h4]:!text-lg
-              [&_h4]:!font-medium
-              [&_h4]:!text-gray-700
-              [&_h4]:!mt-6
-              [&_h4]:!mb-2
-              [&_p]:!text-gray-600
-              [&_p]:!leading-relaxed
-              [&_p]:!mb-4
-              [&_ul]:!text-gray-600
-              [&_ol]:!text-gray-600
-              [&_li]:!mb-2
-              [&_a]:!text-[#19aa59]
-              [&_a]:!no-underline
-              [&_a:hover]:!underline
-              [&_blockquote]:!border-l-4
-              [&_blockquote]:!border-[#19aa59]
-              [&_blockquote]:!bg-[#19aa59]/5
-              [&_blockquote]:!pl-4
-              [&_blockquote]:!py-2
-              [&_blockquote]:!rounded-r-lg
-              [&_blockquote]:!italic
-              [&_blockquote]:!text-gray-600
-              [&_table]:!w-full
-              [&_th]:!bg-gray-100
-              [&_th]:!px-4
-              [&_th]:!py-2
-              [&_th]:!text-left
-              [&_th]:!font-semibold
-              [&_th]:!text-[#030914]
-              [&_td]:!px-4
-              [&_td]:!py-2
-              [&_td]:!border-b
-              [&_td]:!border-gray-100
-              [&_hr]:!border-gray-200
-              [&_hr]:!my-8
-            ">
-              <MDEditor.Markdown
-                source={lesson.content}
-                style={{
-                  padding: 0,
-                  backgroundColor: 'transparent',
-                  color: '#374151'
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
+          <div className="flex items-center justify-between mt-10">
+            {prevSibling ? (
+              <Link
+                href={`/lessons/${prevSibling.id}`}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white border border-gray-200 text-[13px] font-semibold text-[var(--navy-dark)] hover:bg-gray-50 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Previous lesson
+              </Link>
+            ) : (
+              <span />
+            )}
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={completing}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-[var(--accent-green)] hover:bg-[#15934d] text-[13px] font-semibold text-white transition-colors disabled:opacity-60"
+            >
+              {nextSibling ? "Next lesson" : "Finish module"}
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
 
-        {/* Navigation Footer */}
-        <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-between">
-          <Button
-            variant="outline"
-            asChild
-            className="border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-          >
-            <Link href="/lessons">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              All Lessons
-            </Link>
-          </Button>
-          <Button
-            asChild
-            className="bg-[#19aa59] hover:bg-[#15934d] text-white shadow-md hover:shadow-lg transition-all"
-          >
-            <Link href="/challenges">
-              <Target className="h-4 w-4 mr-2" />
-              Practice with Challenges
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Link>
-          </Button>
-        </div>
-
-        {/* Related Content Suggestion */}
-        <Card className="border-0 shadow-sm mt-8 bg-gradient-to-r from-[#19aa59]/5 to-emerald-500/5">
-          <CardContent className="p-6">
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-[#19aa59] to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Target className="h-6 w-6 text-white" />
-              </div>
-              <div className="flex-1 text-center sm:text-left">
-                <h3 className="font-semibold text-[#030914] mb-1">Ready to test your knowledge?</h3>
-                <p className="text-sm text-gray-500">
-                  Apply what you've learned by solving real SQL challenges and climb the leaderboard.
+          {sqlSeed && (
+            <div className="mt-10 flex items-start gap-4 p-5 bg-white border border-gray-200 rounded-[10px]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 border border-gray-200 flex-shrink-0">
+                <Terminal className="h-4 w-4 text-[var(--navy-dark)]" />
+              </span>
+              <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                <p
+                  className="text-[10px] font-bold text-gray-500 uppercase"
+                  style={{ letterSpacing: "1px" }}
+                >
+                  Practice
+                </p>
+                <p className="text-[14px] font-semibold text-[var(--navy-dark)] tracking-[-0.1px]">
+                  Try this in the Playground
+                </p>
+                <p className="text-[12px] text-gray-500 leading-[1.5]">
+                  Run the query above against the sample tables and inspect the result set.
                 </p>
               </div>
-              <Button asChild className="bg-[#19aa59] hover:bg-[#15934d] text-white whitespace-nowrap">
-                <Link href="/challenges">
-                  Start Challenge
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Link>
-              </Button>
+              <Link
+                href={playgroundHref}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-white border border-gray-200 text-[12px] font-semibold text-[var(--navy-dark)] hover:bg-gray-50 transition-colors flex-shrink-0"
+              >
+                Open Playground
+                <ArrowUpRight className="h-3 w-3" />
+              </Link>
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </main>
       </div>
+
+      <style jsx global>{`
+        .lesson-body .wmde-markdown,
+        .lesson-body .w-md-editor-preview,
+        .lesson-body .wmde-markdown-color {
+          background: transparent !important;
+          color: var(--navy-dark) !important;
+          font-family: var(--font-geist-sans), Geist, Arial, sans-serif;
+          font-size: 15px;
+          line-height: 1.7;
+        }
+        .lesson-body h1,
+        .lesson-body h2,
+        .lesson-body h3 {
+          color: var(--navy-dark) !important;
+          font-weight: 700;
+          letter-spacing: 1px;
+          text-transform: uppercase;
+          font-size: 14px !important;
+          margin-top: 28px;
+          margin-bottom: 16px;
+          border: 0 !important;
+          padding: 0 !important;
+        }
+        .lesson-body p {
+          color: #4b5563;
+          margin: 0 0 14px;
+        }
+        .lesson-body strong {
+          color: var(--navy-dark);
+        }
+        .lesson-body code {
+          background: #f3f4f6 !important;
+          color: var(--navy-dark) !important;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 13px;
+          font-family: var(--font-geist-mono), 'Geist Mono', ui-monospace, monospace !important;
+        }
+        .lesson-body pre {
+          background: var(--navy-dark) !important;
+          border-radius: 12px !important;
+          padding: 16px 20px !important;
+          margin: 16px 0 !important;
+        }
+        .lesson-body pre code {
+          background: transparent !important;
+          color: #30c888 !important;
+          padding: 0 !important;
+          font-size: 14px !important;
+          font-weight: 500;
+        }
+        .lesson-body pre .token.keyword {
+          color: #f87171 !important;
+        }
+        .lesson-body pre .token.string,
+        .lesson-body pre .token.number,
+        .lesson-body pre .token.boolean,
+        .lesson-body pre .token.operator {
+          color: #93c5fd !important;
+        }
+        .lesson-body pre .token.comment {
+          color: #94a3b8 !important;
+          font-style: italic;
+        }
+        .lesson-body pre .token.function {
+          color: #fbbf24 !important;
+        }
+        .lesson-body ul,
+        .lesson-body ol {
+          color: #4b5563;
+          padding-left: 20px;
+          margin: 0 0 14px;
+        }
+        .lesson-body li {
+          margin: 4px 0;
+        }
+      `}</style>
     </div>
+  );
+}
+
+function Sidebar({
+  moduleTitle,
+  moduleOrder,
+  lessonTitle,
+  siblings,
+  currentId,
+  moduleProgress,
+}) {
+  return (
+    <aside className="w-[320px] bg-white border-r border-gray-200 px-6 py-6 flex flex-col gap-6 self-start sticky top-[69px] min-h-[calc(100vh-69px)]">
+      <Link
+        href="/lessons"
+        className="flex items-center gap-1.5 text-[13px] font-medium text-gray-500 hover:text-[var(--navy-dark)] transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to lessons
+      </Link>
+
+      {moduleTitle && (
+        <p
+          className="text-[12px] font-bold text-gray-400 uppercase"
+          style={{ letterSpacing: "0.5px" }}
+        >
+          Module {moduleOrder ?? 1} · {moduleTitle}
+        </p>
+      )}
+
+      <h2 className="text-[18px] font-bold text-[var(--navy-dark)] -mt-3">
+        {lessonTitle}
+      </h2>
+
+      <div className="h-px bg-gray-200" />
+
+      <nav className="flex flex-col gap-1">
+        {siblings.length === 0 && (
+          <p className="text-[12px] text-gray-400">
+            This lesson is not part of a module.
+          </p>
+        )}
+        {siblings.map((s) => {
+          const status = moduleProgress[s.id] ?? "NOT_STARTED";
+          const isCurrent = s.id === currentId;
+          return (
+            <SidebarItem
+              key={s.id}
+              href={`/lessons/${s.id}`}
+              title={s.title}
+              isCurrent={isCurrent}
+              status={status}
+            />
+          );
+        })}
+      </nav>
+    </aside>
+  );
+}
+
+function SidebarItem({ href, title, isCurrent, status }) {
+  const completed = status === "COMPLETED";
+
+  if (isCurrent) {
+    return (
+      <Link
+        href={href}
+        className="flex items-center gap-2.5 px-3 py-2.5 bg-[#f0fdf4] text-[var(--accent-green)] rounded-r-lg"
+        style={{
+          borderLeft: "3px solid var(--accent-green)",
+          paddingLeft: "9px",
+        }}
+      >
+        <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 border-[var(--accent-green)]">
+          <span className="block h-[10px] w-[10px] rounded-full bg-[var(--accent-green)]" />
+        </span>
+        <span className="text-[13px] font-bold text-[#15934d] truncate">
+          {title}
+        </span>
+      </Link>
+    );
+  }
+
+  if (completed) {
+    return (
+      <Link
+        href={href}
+        className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
+      >
+        <span className="flex h-[20px] w-[20px] items-center justify-center rounded-full bg-white border-[1.5px] border-[var(--accent-green)]">
+          <Check className="h-[11px] w-[11px] text-[var(--accent-green)]" strokeWidth={3} />
+        </span>
+        <span className="text-[13px] font-medium text-gray-500 truncate">
+          {title}
+        </span>
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
+    >
+      <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full border border-gray-300" />
+      <span className="text-[13px] font-medium text-gray-500 truncate">
+        {title}
+      </span>
+    </Link>
   );
 }

@@ -46,13 +46,14 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const data = await request.json();
-    const { 
-      title, 
-      content, 
-      description, 
-      order, 
+    const {
+      title,
+      content,
+      description,
+      order,
       isPublished,
-      creator_id 
+      creator_id,
+      module_id,
     } = data;
 
     // Validate required fields
@@ -88,6 +89,7 @@ export async function POST(request) {
         isPublished: isPublished || false,
         institution_id,
         creator_id: creator_id,
+        module_id: module_id || null,
       },
       include: {
         institution: true,

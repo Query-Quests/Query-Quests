@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>QueryQuest · Full-platform QA report (v3)</title>
+<style>
+  :root {
+    --bg: #f9f9f9; --card: #ffffff; --navy: #030914; --green: #19aa59; --green-dark: #15934d;
+    --green-soft: #ecfdf5; --red: #dc2626; --red-soft: #fee2e2; --amber: #b45309; --amber-soft: #fef3c7;
+    --gray-100: #f3f4f6; --gray-200: #e5e7eb; --gray-400: #9ca3af; --gray-500: #6b7280; --gray-700: #374151;
+    --mono: ui-monospace, SFMono-Regular, "Geist Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Geist, sans-serif; background: var(--bg); color: var(--navy); }
+  main { max-width: 1100px; margin: 0 auto; padding: 48px 32px 96px; }
+  h1 { font-size: 36px; letter-spacing: -1px; margin: 0 0 8px; }
+  h2 { font-size: 22px; letter-spacing: -0.4px; margin: 48px 0 16px; }
+  h3 { font-size: 13px; margin: 24px 0 10px; color: var(--gray-700); text-transform: uppercase; letter-spacing: 1.4px; }
+  p { margin: 0 0 12px; color: var(--gray-700); }
+  .lede { font-size: 16px; color: var(--gray-500); margin-bottom: 32px; }
+  .card { background: var(--card); border: 1px solid var(--gray-200); border-radius: 14px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 24px 0 32px; }
+  .stat { background: var(--card); border: 1px solid var(--gray-200); border-radius: 12px; padding: 18px; }
+  .stat-label { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; color: var(--gray-500); text-transform: uppercase; }
+  .stat-value { font-family: var(--mono); font-size: 32px; font-weight: 600; color: var(--navy); margin-top: 6px; letter-spacing: -0.4px; }
+  .stat-sub { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--gray-200); vertical-align: top; }
+  th { background: var(--bg); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--gray-500); }
+  tr:last-child td { border-bottom: 0; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; }
+  .badge.pass { background: var(--green-soft); color: var(--green-dark); }
+  .badge.fail { background: var(--red-soft); color: var(--red); }
+  .badge.fixed { background: #eef2ff; color: #4338ca; }
+  .badge.role { background: var(--gray-100); color: var(--gray-700); }
+  code, .mono { font-family: var(--mono); font-size: 12px; background: var(--gray-100); padding: 1px 5px; border-radius: 4px; color: var(--navy); }
+  .green-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--green); color: white; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+  ul.kvs { list-style: none; padding: 0; margin: 0; font-size: 12.5px; }
+  ul.kvs li { padding: 6px 0; border-bottom: 1px dashed var(--gray-200); display: flex; justify-content: space-between; gap: 16px; }
+  ul.kvs li:last-child { border-bottom: 0; }
+  ul.kvs li span:last-child { font-family: var(--mono); color: var(--gray-700); }
+  .footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--gray-200); font-size: 12px; color: var(--gray-500); }
+  .fix-grid { display: grid; gap: 12px; margin: 24px 0; }
+  .fix { background: var(--card); border: 1px solid var(--gray-200); border-radius: 12px; padding: 18px 20px; }
+  .fix h4 { margin: 0 0 8px; font-size: 14px; }
+  .fix p { font-size: 13px; margin: 0 0 4px; }
+  .fix .note { font-size: 12px; color: var(--gray-500); }
+</style>
+</head>
+<body>
+<main>
+  <span class="green-pill">QueryQuest</span>
+  <h1 style="margin-top: 12px;">Full-platform QA report · v3</h1>
+  <p class="lede">Remediation pass: every limitation called out in v2 has been fixed. The streak counter now reads real user activity, the activity log is sourced from real DB events instead of mocked data, two new schema fields shipped (User <code>is_active</code>/<code>archived_at</code>, Institution <code>plan</code>/<code>seats</code>), the orphan component is gone, the duplicate admin name is resolved, and the practice DB now spans 2024–2026 so per-year queries return non-trivial results. Re-verified end-to-end in Chrome — 100% pass, zero console errors. 2026-04-25.</p>
+
+  <div class="stat-grid">
+    <div class="stat">
+      <div class="stat-label">Limitations remediated</div>
+      <div class="stat-value">6 / 6</div>
+      <div class="stat-sub">100%</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">New schema fields</div>
+      <div class="stat-value">+4</div>
+      <div class="stat-sub">User &amp; Institution</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">New API endpoint</div>
+      <div class="stat-value">1</div>
+      <div class="stat-sub">/api/admin/activity</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Console errors</div>
+      <div class="stat-value">0</div>
+      <div class="stat-sub">across all pages</div>
+    </div>
+  </div>
+
+  <h2>Fixes shipped</h2>
+
+  <div class="fix-grid">
+    <div class="fix">
+      <h4><span class="badge fixed">FIXED</span> Streak counter on /home</h4>
+      <p>Was hardcoded to <code>"12 days"</code>. Now computed from <code>UserChallenge.created_at</code> + <code>LessonProgress.completed_at</code> dates: a streak is the run of consecutive UTC days ending today (or yesterday if no activity yet today) on which the user had at least one solve or lesson completion.</p>
+      <p class="note">Files: <code>src/app/api/users/[id]/stats/route.js</code>, <code>src/app/home/page.jsx</code>. Verified: María Rodríguez shows <span class="badge pass">1 day</span> (matches the fact she solved 2 challenges today and nothing on prior days).</p>
+    </div>
+
+    <div class="fix">
+      <h4><span class="badge fixed">FIXED</span> Per-year challenge data</h4>
+      <p>"Mes con mayores ventas por año" was returning 1 row because all seeded orders fell in 2026. Backfilled 12 historical orders spanning 2024 (Mar/May/Jul/Aug/Nov/Dec) and 2025 (Jan/Apr/Jun/Sep/Oct/Dec).</p>
+      <p class="note">Verified: canonical solution now returns <strong>3 rows</strong> (one winning month per year), submission validates as <span class="badge pass">PASSED</span>. Per-year revenue: 2024 $22,549, 2025 $18,940, 2026 $49,329.</p>
+    </div>
+
+    <div class="fix">
+      <h4><span class="badge fixed">FIXED</span> Real activity log feed</h4>
+      <p>Replaced <code>generateMockActivity()</code> with a real <code>/api/admin/activity</code> endpoint that unions four data sources: <code>UserChallenge</code>, <code>LessonProgress</code> (started + completed), <code>QueryAttempt</code> (passed verdicts), and <code>User.last_login</code>. Time-sorted, capped at 200, mapped to the existing <code>ActivityDataTable</code> shape.</p>
+      <p class="note">Files: new <code>src/app/api/admin/activity/route.js</code>; updated <code>src/app/admin/activity/page.jsx</code>. Verified: page now shows real events like "María Rodríguez · Solved 'Salario medio por departamento' · +150 pts" and "Admin User · Administrator signed in".</p>
+    </div>
+
+    <div class="fix">
+      <h4><span class="badge fixed">FIXED</span> User &amp; Institution metadata</h4>
+      <p>Added 4 fields to the schema:</p>
+      <ul class="kvs">
+        <li><span><code>User.is_active</code></span><span>Boolean default true</span></li>
+        <li><span><code>User.archived_at</code></span><span>DateTime?</span></li>
+        <li><span><code>Institution.plan</code></span><span>String default "free" (free / pro / enterprise)</span></li>
+        <li><span><code>Institution.seats</code></span><span>Int default 50</span></li>
+      </ul>
+      <p class="note" style="margin-top: 10px;">Pushed via <code>prisma db push</code>. Seeded realistic plans: UCA = enterprise/200, Sevilla &amp; CSA &amp; Engineering Barcelona = pro/80–100, others = free. Users column now shows live count vs seat allowance, e.g. <code>22 / 200</code>. Status column shows green-dot "Active" pill (Archived path wired but not exercised in seed).</p>
+    </div>
+
+    <div class="fix">
+      <h4><span class="badge fixed">FIXED</span> Orphan DashboardStats.jsx</h4>
+      <p>Confirmed zero importers (<code>grep -rln DashboardStats src/</code> returned only the file itself), then deleted <code>src/components/DashboardStats.jsx</code>.</p>
+    </div>
+
+    <div class="fix">
+      <h4><span class="badge fixed">FIXED</span> Duplicate "Admin User"</h4>
+      <p>The legacy admin <code>al.orellanaserrano@alum.uca.es</code> was renamed to <strong>"Álvaro Orellana"</strong> (his real name). The test admin <code>admin@queryquest.com / password123</code> remains the canonical "Admin User".</p>
+    </div>
+  </div>
+
+  <h2>Verification</h2>
+  <p>Re-ran the v2 sweep across all impacted pages. Every check still <span class="badge pass">PASSED</span>; the previously-flagged limitations are gone. Detailed results:</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Area</th>
+        <th>Before (v2)</th>
+        <th>After (v3)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>/home</code> streak tile</td>
+        <td>"12 days" hardcoded</td>
+        <td><span class="badge pass">1 day</span> derived from real activity (will grow as user logs in on consecutive days)</td>
+      </tr>
+      <tr>
+        <td><code>/admin/activity</code></td>
+        <td>50 mocked entries via <code>generateMockActivity()</code></td>
+        <td>100+ real events: solves, logins, lesson starts/completions sourced from DB</td>
+      </tr>
+      <tr>
+        <td><code>/admin/users</code> table columns</td>
+        <td>5 columns, no Status</td>
+        <td>6 columns including <code>STATUS</code> with active/archived dot</td>
+      </tr>
+      <tr>
+        <td><code>/admin/institutions</code> table columns</td>
+        <td>4 columns, no Plan/Seats</td>
+        <td>5 columns: <code>INSTITUTION · PLAN · USERS / SEATS · CHALLENGES · EMAIL DOMAINS</code> with proper enterprise/pro/free pills</td>
+      </tr>
+      <tr>
+        <td>"Mes con mayores ventas por año"</td>
+        <td>Returns 1 row (only 2026 had orders)</td>
+        <td>Returns <strong>3 rows</strong> (one per year 2024/2025/2026), validation passes</td>
+      </tr>
+      <tr>
+        <td><code>src/components/DashboardStats.jsx</code></td>
+        <td>Orphan, no importers</td>
+        <td>Removed</td>
+      </tr>
+      <tr>
+        <td>Duplicate "Admin User" rows</td>
+        <td>2 admins both named "Admin User"</td>
+        <td>"Álvaro Orellana" + "Admin User" (test admin)</td>
+      </tr>
+      <tr>
+        <td>WebSocket noise on /playground</td>
+        <td>Eliminated in v2 (HTTP-only)</td>
+        <td>Still clean — <span class="badge pass">verified</span></td>
+      </tr>
+      <tr>
+        <td>Comparator ISO-date case fix</td>
+        <td>Patched in v1</td>
+        <td>Still in place — challenge solves still pass</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Files changed in this pass</h2>
+  <ul>
+    <li><strong>Schema:</strong> <code>src/prisma/schema.prisma</code> (+4 fields), <code>prisma db push</code></li>
+    <li><strong>API:</strong> new <code>src/app/api/admin/activity/route.js</code>; <code>src/app/api/users/[id]/stats/route.js</code> (streak compute); <code>src/app/api/users/route.js</code> (select <code>is_active</code>, <code>archived_at</code>); <code>src/prisma/wire-practice-db.js</code> (now upserts datasets so re-runs refresh stale rows)</li>
+    <li><strong>UI:</strong> <code>src/app/home/page.jsx</code> (streak from API); <code>src/components/admin/users/UsersDataTable.jsx</code> (Status column); <code>src/components/admin/institutions/InstitutionsDataTable.jsx</code> (Plan + Seats columns); <code>src/app/admin/activity/page.jsx</code> (real fetch)</li>
+    <li><strong>Data:</strong> 12 new orders in <code>practice.orders</code> (2024–2025), all 8 challenge expectedResults + ChallengeDataset rows refreshed against the new data; 6 institutions assigned plan/seats values; legacy admin renamed</li>
+    <li><strong>Cleanup:</strong> <code>src/components/DashboardStats.jsx</code> deleted</li>
+    <li><strong>Report:</strong> <code>docs/qa-report.html</code> regenerated (this file)</li>
+  </ul>
+
+  <h2>Sandbox database — current state</h2>
+  <div class="card">
+    <ul class="kvs">
+      <li><span>Departments / Employees / Products / Orders</span><span>5 / 22 / 12 / 30</span></li>
+      <li><span>Order years</span><span>2024 (6 orders) · 2025 (6) · 2026 (18)</span></li>
+      <li><span>Total seeded revenue</span><span>$90,819</span></li>
+      <li><span>Challenges wired</span><span>8 / 8 with refreshed expectedResult + ChallengeDataset</span></li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    Generated by an automated Chrome DevTools MCP sweep · QueryQuest · 2026-04-25 (v3)
+  </div>
+</main>
+</body>
+</html>

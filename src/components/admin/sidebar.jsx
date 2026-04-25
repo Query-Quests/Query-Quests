@@ -7,7 +7,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -43,8 +42,8 @@ import {
   Menu,
   LogOut,
   User,
+  BookOpen,
   ChevronUp,
-  Shield,
 } from "lucide-react";
 
 // ============================================================================
@@ -52,8 +51,8 @@ import {
 // ============================================================================
 
 const SIDEBAR_STORAGE_KEY = "admin-sidebar-collapsed";
-const SIDEBAR_WIDTH = "256px";
-const SIDEBAR_COLLAPSED_WIDTH = "68px";
+const SIDEBAR_WIDTH = "260px";
+const SIDEBAR_COLLAPSED_WIDTH = "72px";
 
 const SidebarContext = createContext(null);
 
@@ -74,7 +73,6 @@ export function SidebarProvider({ children, defaultCollapsed = false }) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Load collapsed state from localStorage on mount
   useEffect(() => {
     setIsMounted(true);
     if (typeof window !== "undefined") {
@@ -85,28 +83,16 @@ export function SidebarProvider({ children, defaultCollapsed = false }) {
     }
   }, []);
 
-  // Persist collapsed state to localStorage
   useEffect(() => {
     if (isMounted && typeof window !== "undefined") {
       localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isCollapsed));
     }
   }, [isCollapsed, isMounted]);
 
-  const toggleCollapsed = useCallback(() => {
-    setIsCollapsed((prev) => !prev);
-  }, []);
-
-  const openMobile = useCallback(() => {
-    setIsMobileOpen(true);
-  }, []);
-
-  const closeMobile = useCallback(() => {
-    setIsMobileOpen(false);
-  }, []);
-
-  const toggleMobile = useCallback(() => {
-    setIsMobileOpen((prev) => !prev);
-  }, []);
+  const toggleCollapsed = useCallback(() => setIsCollapsed((prev) => !prev), []);
+  const openMobile = useCallback(() => setIsMobileOpen(true), []);
+  const closeMobile = useCallback(() => setIsMobileOpen(false), []);
+  const toggleMobile = useCallback(() => setIsMobileOpen((prev) => !prev), []);
 
   return (
     <SidebarContext.Provider
@@ -128,8 +114,12 @@ export function SidebarProvider({ children, defaultCollapsed = false }) {
 }
 
 // ============================================================================
-// SIDEBAR COMPONENTS
+// SIDEBAR PRIMITIVES
 // ============================================================================
+
+const SIDEBAR_FONT = {
+  fontFamily: "var(--font-geist-sans), Geist, Arial, sans-serif",
+};
 
 export function Sidebar({ children, className }) {
   const { isCollapsed, isMounted } = useSidebar();
@@ -137,11 +127,12 @@ export function Sidebar({ children, className }) {
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-40 hidden lg:flex flex-col bg-white border-r border-gray-200 transition-all duration-300 ease-in-out",
+        "fixed inset-y-0 left-0 z-40 hidden lg:flex flex-col bg-[#030914] text-gray-200 border-r border-white/10 transition-all duration-300 ease-in-out",
         className
       )}
       style={{
         width: isMounted ? (isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH) : SIDEBAR_WIDTH,
+        ...SIDEBAR_FONT,
       }}
     >
       {children}
@@ -155,7 +146,7 @@ export function SidebarHeader({ children, className }) {
   return (
     <div
       className={cn(
-        "flex items-center border-b border-gray-100 h-16 px-4 shrink-0",
+        "flex items-center border-b border-white/10 h-[72px] px-5 shrink-0",
         isCollapsed ? "justify-center" : "justify-between",
         className
       )}
@@ -175,7 +166,7 @@ export function SidebarContent({ children, className }) {
 
 export function SidebarFooter({ children, className }) {
   return (
-    <div className={cn("mt-auto border-t border-gray-100 p-3 shrink-0", className)}>
+    <div className={cn("mt-auto border-t border-white/10 p-3 shrink-0", className)}>
       {children}
     </div>
   );
@@ -187,17 +178,14 @@ export function SidebarGroup({ children, className }) {
 
 export function SidebarGroupLabel({ children, className }) {
   const { isCollapsed } = useSidebar();
-
-  if (isCollapsed) {
-    return null;
-  }
-
+  if (isCollapsed) return null;
   return (
     <div
       className={cn(
-        "px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider",
+        "px-3 pt-1 pb-2 text-[11px] font-bold text-gray-500 uppercase",
         className
       )}
+      style={{ letterSpacing: "2px" }}
     >
       {children}
     </div>
@@ -228,15 +216,15 @@ export function SidebarMenuItem({
       href={href}
       onClick={handleClick}
       className={cn(
-        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+        "flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors",
         isActive
-          ? "bg-primary text-primary-foreground shadow-sm"
-          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+          ? "bg-[#19aa59] text-white shadow-sm hover:bg-[#15934d]"
+          : "text-gray-300 hover:bg-white/5 hover:text-white",
         isCollapsed && "justify-center px-2",
         className
       )}
     >
-      <Icon className="h-5 w-5 shrink-0" />
+      <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-white" : "text-gray-400")} />
       {!isCollapsed && <span className="truncate">{label}</span>}
     </Link>
   );
@@ -265,7 +253,10 @@ export function SidebarCollapseButton({ className }) {
           variant="ghost"
           size="icon"
           onClick={toggleCollapsed}
-          className={cn("h-8 w-8 shrink-0", className)}
+          className={cn(
+            "h-8 w-8 shrink-0 text-gray-400 hover:bg-white/5 hover:text-white",
+            className
+          )}
         >
           {isCollapsed ? (
             <PanelLeft className="h-4 w-4" />
@@ -282,7 +273,7 @@ export function SidebarCollapseButton({ className }) {
 }
 
 // ============================================================================
-// MOBILE SIDEBAR (Sheet-based drawer)
+// MOBILE SIDEBAR
 // ============================================================================
 
 export function MobileSidebar({ children }) {
@@ -290,7 +281,11 @@ export function MobileSidebar({ children }) {
 
   return (
     <Sheet open={isMobileOpen} onOpenChange={closeMobile}>
-      <SheetContent side="left" className="w-72 p-0">
+      <SheetContent
+        side="left"
+        className="w-72 p-0 bg-[#030914] text-gray-200 border-r border-white/10"
+        style={SIDEBAR_FONT}
+      >
         <SheetHeader className="sr-only">
           <SheetTitle>Navigation Menu</SheetTitle>
         </SheetHeader>
@@ -317,102 +312,83 @@ export function MobileSidebarTrigger({ className }) {
 }
 
 // ============================================================================
-// NAVIGATION ITEMS CONFIGURATION
+// NAV ITEMS
 // ============================================================================
 
-const adminNavItems = [
-  {
-    label: "Dashboard",
-    href: "/admin",
-    icon: BarChart3,
-  },
-  {
-    label: "Users",
-    href: "/admin/users",
-    icon: Users,
-  },
-  {
-    label: "Challenges",
-    href: "/admin/challenges",
-    icon: Database,
-  },
-  {
-    label: "Institutions",
-    href: "/admin/institutions",
-    icon: Landmark,
-  },
-  {
-    label: "Contact Requests",
-    href: "/admin/contact-requests",
-    icon: MessageSquare,
-  },
-  {
-    label: "Activity",
-    href: "/admin/activity",
-    icon: Activity,
-  },
-  {
-    label: "Settings",
-    href: "/admin/settings",
-    icon: Settings,
-  },
+const adminNavOverview = [
+  { label: "Dashboard", href: "/admin", icon: BarChart3 },
+  { label: "Activity", href: "/admin/activity", icon: Activity },
+  { label: "Modules", href: "/admin/modules", icon: BookOpen },
+  { label: "Challenges", href: "/admin/challenges", icon: Database },
 ];
 
-const teacherNavItems = [
-  {
-    label: "Dashboard",
-    href: "/admin",
-    icon: BarChart3,
-  },
-  {
-    label: "Users",
-    href: "/admin/users",
-    icon: Users,
-  },
-  {
-    label: "Challenges",
-    href: "/admin/challenges",
-    icon: Database,
-  },
-  {
-    label: "Settings",
-    href: "/admin/settings",
-    icon: Settings,
-  },
+const adminNavManagement = [
+  { label: "Users", href: "/admin/users", icon: Users },
+  { label: "Institutions", href: "/admin/institutions", icon: Landmark },
+  { label: "Databases", href: "/admin/databases", icon: Database },
+  { label: "Contact Requests", href: "/admin/contact-requests", icon: MessageSquare },
+  { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
-// ============================================================================
-// SIDEBAR NAVIGATION
-// ============================================================================
+const teacherNavOverview = [
+  { label: "Dashboard", href: "/admin", icon: BarChart3 },
+  { label: "Modules", href: "/admin/modules", icon: BookOpen },
+  { label: "Challenges", href: "/admin/challenges", icon: Database },
+];
+
+const teacherNavManagement = [
+  { label: "Users", href: "/admin/users", icon: Users },
+  { label: "Databases", href: "/admin/databases", icon: Database },
+  { label: "Settings", href: "/admin/settings", icon: Settings },
+];
+
+function isItemActive(pathname, item) {
+  if (item.href === "/admin") return pathname === "/admin";
+  return pathname.startsWith(item.href);
+}
 
 export function SidebarNav({ panelType = "admin" }) {
   const pathname = usePathname();
-  const navItems = panelType === "admin" ? adminNavItems : teacherNavItems;
+  const overview = panelType === "admin" ? adminNavOverview : teacherNavOverview;
+  const management = panelType === "admin" ? adminNavManagement : teacherNavManagement;
 
   return (
-    <SidebarMenu>
-      {navItems.map((item) => {
-        const isActive =
-          item.href === "/admin"
-            ? pathname === "/admin"
-            : pathname.startsWith(item.href);
+    <>
+      <SidebarGroup>
+        <SidebarGroupLabel>Overview</SidebarGroupLabel>
+        <SidebarMenu>
+          {overview.map((item) => (
+            <SidebarMenuItem
+              key={item.href}
+              href={item.href}
+              icon={item.icon}
+              label={item.label}
+              isActive={isItemActive(pathname, item)}
+            />
+          ))}
+        </SidebarMenu>
+      </SidebarGroup>
 
-        return (
-          <SidebarMenuItem
-            key={item.href}
-            href={item.href}
-            icon={item.icon}
-            label={item.label}
-            isActive={isActive}
-          />
-        );
-      })}
-    </SidebarMenu>
+      <SidebarGroup>
+        <SidebarGroupLabel>Management</SidebarGroupLabel>
+        <SidebarMenu>
+          {management.map((item) => (
+            <SidebarMenuItem
+              key={item.href}
+              href={item.href}
+              icon={item.icon}
+              label={item.label}
+              isActive={isItemActive(pathname, item)}
+            />
+          ))}
+        </SidebarMenu>
+      </SidebarGroup>
+    </>
   );
 }
 
 // ============================================================================
-// USER PROFILE SECTION
+// USER PROFILE
 // ============================================================================
 
 export function SidebarUserProfile({ user, panelType = "admin" }) {
@@ -424,17 +400,15 @@ export function SidebarUserProfile({ user, panelType = "admin" }) {
     router.push("/auth");
   };
 
-  const handleNavigate = (path) => {
-    router.push(path);
-  };
+  const handleNavigate = (path) => router.push(path);
 
   const userInitial = user?.name?.charAt(0)?.toUpperCase() || "U";
   const roleLabel = panelType === "admin" ? "Administrator" : "Teacher";
 
   const avatarContent = (
-    <Avatar className="h-9 w-9">
+    <Avatar className="h-9 w-9 border border-white/10">
       <AvatarImage src={user?.avatar} alt={user?.name} />
-      <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
+      <AvatarFallback className="bg-[#19aa59] text-white text-sm font-bold">
         {userInitial}
       </AvatarFallback>
     </Avatar>
@@ -448,7 +422,7 @@ export function SidebarUserProfile({ user, panelType = "admin" }) {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="h-10 w-10 p-0 rounded-lg hover:bg-gray-100"
+                className="h-10 w-10 p-0 rounded-lg hover:bg-white/5"
               >
                 {avatarContent}
               </Button>
@@ -460,9 +434,7 @@ export function SidebarUserProfile({ user, panelType = "admin" }) {
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium leading-none">{user?.name}</p>
-              <p className="text-xs leading-none text-muted-foreground">
-                {user?.email}
-              </p>
+              <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
@@ -489,20 +461,15 @@ export function SidebarUserProfile({ user, panelType = "admin" }) {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="w-full h-auto p-2 justify-start hover:bg-gray-50 rounded-lg"
+          className="w-full h-auto p-2 justify-start hover:bg-white/5 rounded-lg"
         >
           <div className="flex items-center gap-3 w-full">
             {avatarContent}
             <div className="flex-1 text-left min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
+              <p className="text-sm font-semibold text-white truncate">
                 {user?.name}
               </p>
-              <Badge
-                variant="secondary"
-                className="text-[10px] px-1.5 py-0 h-4 font-normal"
-              >
-                {roleLabel}
-              </Badge>
+              <p className="text-[11px] text-gray-400 truncate">{roleLabel}</p>
             </div>
             <ChevronUp className="h-4 w-4 text-gray-400 shrink-0" />
           </div>
@@ -512,9 +479,7 @@ export function SidebarUserProfile({ user, panelType = "admin" }) {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{user?.name}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user?.email}
-            </p>
+            <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -537,7 +502,7 @@ export function SidebarUserProfile({ user, panelType = "admin" }) {
 }
 
 // ============================================================================
-// BACK TO HOME LINK
+// BACK TO HOME
 // ============================================================================
 
 export function SidebarBackToHome() {
@@ -548,11 +513,11 @@ export function SidebarBackToHome() {
       href="/home"
       onClick={closeMobile}
       className={cn(
-        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors",
+        "flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[14px] font-medium text-gray-400 hover:bg-white/5 hover:text-white transition-colors",
         isCollapsed && "justify-center px-2"
       )}
     >
-      <Home className="h-5 w-5 shrink-0" />
+      <Home className="h-4 w-4 shrink-0" />
       {!isCollapsed && <span>Back to Home</span>}
     </Link>
   );
@@ -570,47 +535,46 @@ export function SidebarBackToHome() {
 }
 
 // ============================================================================
-// SIDEBAR LOGO/BRANDING
+// BRANDING
 // ============================================================================
 
 export function SidebarBranding({ panelType = "admin" }) {
   const { isCollapsed } = useSidebar();
-  const title = panelType === "admin" ? "Admin" : "Teacher";
+  const subtitle = panelType === "admin" ? "Admin Panel" : "Teacher Panel";
 
   if (isCollapsed) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary">
-            <Shield className="h-5 w-5 text-primary-foreground" />
+          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-[#19aa59]">
+            <Database className="h-[18px] w-[18px] text-white" />
           </div>
         </TooltipTrigger>
-        <TooltipContent side="right">{title} Panel</TooltipContent>
+        <TooltipContent side="right">QueryQuest · {subtitle}</TooltipContent>
       </Tooltip>
     );
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary">
-        <Shield className="h-5 w-5 text-primary-foreground" />
+    <div className="flex items-center gap-2.5">
+      <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-[#19aa59]">
+        <Database className="h-[18px] w-[18px] text-white" />
       </div>
-      <div className="flex flex-col">
-        <span className="text-sm font-semibold text-gray-900">{title} Panel</span>
-        <span className="text-xs text-gray-500">Query Quest</span>
+      <div className="flex flex-col leading-tight">
+        <span className="text-[15px] font-bold text-white">QueryQuest</span>
+        <span className="text-[11px] text-gray-400">{subtitle}</span>
       </div>
     </div>
   );
 }
 
 // ============================================================================
-// COMPLETE ADMIN SIDEBAR (combines all pieces)
+// COMPLETE ADMIN SIDEBAR
 // ============================================================================
 
 export function AdminSidebar({ user, panelType = "admin" }) {
   const { isCollapsed } = useSidebar();
 
-  // Desktop Sidebar Content
   const sidebarContent = (
     <>
       <SidebarHeader>
@@ -619,12 +583,9 @@ export function AdminSidebar({ user, panelType = "admin" }) {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarNav panelType={panelType} />
-        </SidebarGroup>
+        <SidebarNav panelType={panelType} />
 
-        <Separator className="my-4" />
+        <Separator className="my-3 bg-white/10" />
 
         <SidebarGroup>
           <SidebarBackToHome />
@@ -642,35 +603,31 @@ export function AdminSidebar({ user, panelType = "admin" }) {
     </>
   );
 
-  // Mobile Sidebar Content (always expanded)
   const mobileSidebarContent = (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 p-4 border-b border-gray-100">
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary">
-          <Shield className="h-5 w-5 text-primary-foreground" />
+      <div className="flex items-center gap-2.5 px-5 h-[72px] border-b border-white/10">
+        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-[#19aa59]">
+          <Database className="h-[18px] w-[18px] text-white" />
         </div>
-        <div className="flex flex-col">
-          <span className="text-sm font-semibold text-gray-900">
-            {panelType === "admin" ? "Admin" : "Teacher"} Panel
+        <div className="flex flex-col leading-tight">
+          <span className="text-[15px] font-bold text-white">QueryQuest</span>
+          <span className="text-[11px] text-gray-400">
+            {panelType === "admin" ? "Admin Panel" : "Teacher Panel"}
           </span>
-          <span className="text-xs text-gray-500">Query Quest</span>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto py-4">
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarNav panelType={panelType} />
-        </SidebarGroup>
+        <SidebarNav panelType={panelType} />
 
-        <Separator className="my-4" />
+        <Separator className="my-3 bg-white/10" />
 
         <SidebarGroup>
           <SidebarBackToHome />
         </SidebarGroup>
       </div>
 
-      <div className="mt-auto border-t border-gray-100 p-3">
+      <div className="mt-auto border-t border-white/10 p-3">
         <SidebarUserProfile user={user} panelType={panelType} />
       </div>
     </div>
@@ -678,10 +635,7 @@ export function AdminSidebar({ user, panelType = "admin" }) {
 
   return (
     <>
-      {/* Desktop Sidebar */}
       <Sidebar>{sidebarContent}</Sidebar>
-
-      {/* Mobile Sidebar (Sheet) */}
       <MobileSidebar>{mobileSidebarContent}</MobileSidebar>
     </>
   );
@@ -695,18 +649,13 @@ export function SidebarInset({ children, className }) {
   const { isCollapsed, isMounted } = useSidebar();
   const [isLargeScreen, setIsLargeScreen] = useState(false);
 
-  // Track screen size for responsive margin
   useEffect(() => {
-    const checkScreenSize = () => {
-      setIsLargeScreen(window.innerWidth >= 1024);
-    };
-
+    const checkScreenSize = () => setIsLargeScreen(window.innerWidth >= 1024);
     checkScreenSize();
     window.addEventListener("resize", checkScreenSize);
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // Calculate margin based on sidebar state and screen size
   const marginLeft = isLargeScreen && isMounted
     ? isCollapsed
       ? SIDEBAR_COLLAPSED_WIDTH
@@ -716,7 +665,7 @@ export function SidebarInset({ children, className }) {
   return (
     <div
       className={cn(
-        "min-h-screen bg-gray-50 transition-all duration-300 ease-in-out",
+        "min-h-screen bg-[#f9f9f9] transition-all duration-300 ease-in-out",
         className
       )}
       style={{ marginLeft }}

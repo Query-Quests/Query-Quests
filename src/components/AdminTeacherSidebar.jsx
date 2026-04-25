@@ -4,16 +4,17 @@ import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { 
-  X, 
-  Home, 
+import {
+  X,
+  Home,
   Shield,
-  BarChart3, 
-  Users, 
-  Database, 
-  Landmark, 
-  MessageSquare, 
-  Settings
+  BarChart3,
+  Users,
+  Database,
+  Landmark,
+  MessageSquare,
+  Settings,
+  BookOpen,
 } from "lucide-react";
 
 // Navigation items configuration
@@ -27,6 +28,11 @@ const adminNavItems = [
     title: "Users Management",
     href: "/admin/users",
     icon: <Users className="h-4 w-4" />,
+  },
+  {
+    title: "Modules",
+    href: "/admin/modules",
+    icon: <BookOpen className="h-4 w-4" />,
   },
   {
     title: "Challenges",
@@ -65,6 +71,11 @@ const teacherNavItems = [
     title: "Users Management",
     href: "/admin/users",
     icon: <Users className="h-4 w-4" />,
+  },
+  {
+    title: "Modules",
+    href: "/admin/modules",
+    icon: <BookOpen className="h-4 w-4" />,
   },
   {
     title: "Challenges",

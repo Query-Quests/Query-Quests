@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Plus, Upload } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { UserPlus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
@@ -356,29 +355,48 @@ export default function UsersManagement() {
     }
   };
 
+  const totalUsers = pagination?.totalUsers ?? 0;
+  const roleCounts = useMemo(() => {
+    const counts = { student: 0, teacher: 0, admin: 0 };
+    users.forEach((u) => {
+      if (u.isAdmin) counts.admin += 1;
+      else if (u.isTeacher) counts.teacher += 1;
+      else counts.student += 1;
+    });
+    return counts;
+  }, [users]);
+
+  const subtitle =
+    totalUsers > 0
+      ? `${totalUsers.toLocaleString()} total · ${roleCounts.student} students · ${roleCounts.teacher} teachers · ${roleCounts.admin} admins (this page)`
+      : "Manage all users, their roles, and permissions";
+
   return (
-    <div className="space-y-8 w-full">
+    <div className="flex flex-col gap-6 w-full">
       {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Users Management</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage all users, their roles, and permissions
-          </p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-[28px] font-bold text-[#030914] tracking-[-1px] leading-tight">
+            Users
+          </h1>
+          <p className="text-[14px] text-gray-500">{subtitle}</p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            Add User
-          </Button>
-          <Button
-            variant="outline"
+        <div className="flex items-center gap-2.5">
+          <button
             onClick={() => setIsImportModalOpen(true)}
-            className="w-full sm:w-auto"
+            className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-[10px] bg-white border border-gray-200 text-[13px] font-semibold text-[#030914] hover:bg-gray-50"
+            style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}
           >
-            <Upload className="mr-2 h-4 w-4" />
-            Import Users
-          </Button>
+            <Upload className="h-3.5 w-3.5" />
+            Import CSV
+          </button>
+          <button
+            onClick={() => setIsAddDialogOpen(true)}
+            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-[10px] bg-[#19aa59] hover:bg-[#15934d] text-white text-[13px] font-bold"
+          >
+            <UserPlus className="h-3.5 w-3.5" />
+            Invite user
+          </button>
         </div>
       </div>
 

@@ -206,7 +206,10 @@ const XTerminal = ({
     };
     window.addEventListener('resize', handleResize);
 
-    initializeWebSocket(term, databaseName);
+    // Skip the WebSocket attempt entirely — it's never up in this
+    // environment and the connection-refused noise drowns the console.
+    // The HTTP path through /api/shell is the canonical transport.
+    initAPIMode(term);
 
     return () => {
       window.removeEventListener('resize', handleResize);

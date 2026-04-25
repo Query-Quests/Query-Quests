@@ -1,52 +1,35 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 /**
- * UserRoleBadge - Displays a user's role with appropriate styling
+ * UserRoleBadge - Small uppercase role pill matching the Pencil design.
  *
  * @param {Object} props
  * @param {Object} props.user - User object with isAdmin and isTeacher properties
  * @param {string} props.className - Additional CSS classes
  */
 export function UserRoleBadge({ user, className }) {
-  if (user?.isAdmin) {
-    return (
-      <Badge
-        className={cn(
-          "bg-red-100 text-red-700 hover:bg-red-100 border-red-200",
-          className
-        )}
-      >
-        Admin
-      </Badge>
-    );
-  }
-
-  if (user?.isTeacher) {
-    return (
-      <Badge
-        className={cn(
-          "bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200",
-          className
-        )}
-      >
-        Teacher
-      </Badge>
-    );
-  }
+  const role = user?.isAdmin
+    ? { label: "Admin", text: "#92400e", bg: "#fef3c7" }
+    : user?.isTeacher
+    ? { label: "Teacher", text: "#1d4ed8", bg: "#eff6ff" }
+    : { label: "Student", text: "#15934d", bg: "#ecfdf5" };
 
   return (
-    <Badge
-      variant="secondary"
+    <span
       className={cn(
-        "bg-gray-100 text-gray-700 hover:bg-gray-100 border-gray-200",
+        "inline-flex items-center rounded-full px-2.5 py-[2px] text-[9px] font-bold uppercase",
         className
       )}
+      style={{
+        color: role.text,
+        backgroundColor: role.bg,
+        letterSpacing: "1px",
+      }}
     >
-      Student
-    </Badge>
+      {role.label}
+    </span>
   );
 }
 

@@ -1,228 +1,274 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Header from "@/components/header";
 import XTerminal from "@/components/XTerminal";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { 
-  LayoutGrid, 
-  Rows, 
-  Database, 
-  Table, 
-  Key, 
-  Info,
-  Copy,
-  Check
+import {
+  Database,
+  ChevronDown,
+  Play,
+  FolderTree,
+  Table2,
+  Key,
+  Link2,
+  Hash,
+  PanelLeftClose,
+  PanelLeftOpen,
+  X,
 } from "lucide-react";
 
+const DATASETS = [
+  {
+    key: "practice",
+    label: "practice_db",
+    description:
+      "Students, courses, enrollments. The default sandbox for intro challenges.",
+    tables: [
+      {
+        name: "users",
+        description: "User accounts and profiles",
+        columns: [
+          { name: "id", type: "INTEGER", constraints: ["PRIMARY KEY", "AUTO_INCREMENT"] },
+          { name: "name", type: "VARCHAR(255)", constraints: ["NOT NULL"] },
+          { name: "email", type: "VARCHAR(255)", constraints: ["UNIQUE", "NOT NULL"] },
+          { name: "alias", type: "VARCHAR(100)", constraints: [] },
+          { name: "institution_id", type: "INTEGER", constraints: ["FOREIGN KEY"] },
+          { name: "is_admin", type: "BOOLEAN", constraints: ["DEFAULT FALSE"] },
+          { name: "is_teacher", type: "BOOLEAN", constraints: ["DEFAULT FALSE"] },
+          { name: "points", type: "INTEGER", constraints: ["DEFAULT 0"] },
+          { name: "solved_challenges", type: "INTEGER", constraints: ["DEFAULT 0"] },
+          { name: "created_at", type: "TIMESTAMP", constraints: ["DEFAULT CURRENT_TIMESTAMP"] },
+        ],
+      },
+      {
+        name: "challenges",
+        description: "SQL challenges and exercises",
+        columns: [
+          { name: "id", type: "INTEGER", constraints: ["PRIMARY KEY", "AUTO_INCREMENT"] },
+          { name: "title", type: "VARCHAR(255)", constraints: ["NOT NULL"] },
+          { name: "statement", type: "TEXT", constraints: ["NOT NULL"] },
+          { name: "solution", type: "TEXT", constraints: ["NOT NULL"] },
+          { name: "level", type: "INTEGER", constraints: ["NOT NULL", "DEFAULT 1"] },
+          { name: "points", type: "INTEGER", constraints: ["NOT NULL", "DEFAULT 100"] },
+          { name: "creator_id", type: "INTEGER", constraints: ["FOREIGN KEY"] },
+          { name: "institution_id", type: "INTEGER", constraints: ["FOREIGN KEY"] },
+          { name: "created_at", type: "TIMESTAMP", constraints: ["DEFAULT CURRENT_TIMESTAMP"] },
+        ],
+      },
+      {
+        name: "institutions",
+        description: "Educational institutions",
+        columns: [
+          { name: "id", type: "INTEGER", constraints: ["PRIMARY KEY", "AUTO_INCREMENT"] },
+          { name: "name", type: "VARCHAR(255)", constraints: ["NOT NULL", "UNIQUE"] },
+          { name: "address", type: "TEXT", constraints: [] },
+          { name: "created_at", type: "TIMESTAMP", constraints: ["DEFAULT CURRENT_TIMESTAMP"] },
+        ],
+      },
+      {
+        name: "user_activity",
+        description: "User activity and progress tracking",
+        columns: [
+          { name: "id", type: "INTEGER", constraints: ["PRIMARY KEY", "AUTO_INCREMENT"] },
+          { name: "user_id", type: "INTEGER", constraints: ["FOREIGN KEY", "NOT NULL"] },
+          { name: "challenge_id", type: "INTEGER", constraints: ["FOREIGN KEY"] },
+          { name: "action", type: "VARCHAR(100)", constraints: ["NOT NULL"] },
+          { name: "points_earned", type: "INTEGER", constraints: ["DEFAULT 0"] },
+          { name: "timestamp", type: "TIMESTAMP", constraints: ["DEFAULT CURRENT_TIMESTAMP"] },
+        ],
+      },
+    ],
+  },
+];
+
+function constraintIcon(constraints) {
+  if (constraints.some((c) => c.includes("PRIMARY KEY"))) {
+    return <Key className="h-3 w-3 text-amber-500 shrink-0" />;
+  }
+  if (constraints.some((c) => c.includes("FOREIGN KEY"))) {
+    return <Link2 className="h-3 w-3 text-[#19aa59] shrink-0" />;
+  }
+  return <Hash className="h-3 w-3 text-gray-400 shrink-0" />;
+}
+
+function shortType(type) {
+  return type.replace(/\(.*\)/, "");
+}
+
 export default function Playground() {
-    const [isColumnLayout, setIsColumnLayout] = useState(true);
-    const [copiedTable, setCopiedTable] = useState(null);
-    const [isMobile, setIsMobile] = useState(false);
+  const [activeDataset] = useState(DATASETS[0]);
+  const [expandedTable, setExpandedTable] = useState(DATASETS[0].tables[0].name);
+  const [schemaOpen, setSchemaOpen] = useState(false);
 
-    // Check if device is mobile
-    useEffect(() => {
-        const checkMobile = () => {
-            setIsMobile(window.innerWidth < 768); // md breakpoint
-        };
-        
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
+  const tables = useMemo(
+    () => activeDataset.tables.map((t) => ({ ...t, count: t.columns.length })),
+    [activeDataset]
+  );
 
-    // Sample database schema - in a real app, this would come from your database
-    const databaseSchema = {
-        tables: [
-            {
-                name: "users",
-                description: "User accounts and profiles",
-                columns: [
-                    { name: "id", type: "INTEGER", constraints: ["PRIMARY KEY", "AUTO_INCREMENT"] },
-                    { name: "name", type: "VARCHAR(255)", constraints: ["NOT NULL"] },
-                    { name: "email", type: "VARCHAR(255)", constraints: ["UNIQUE", "NOT NULL"] },
-                    { name: "alias", type: "VARCHAR(100)", constraints: [] },
-                    { name: "institution_id", type: "INTEGER", constraints: ["FOREIGN KEY"] },
-                    { name: "is_admin", type: "BOOLEAN", constraints: ["DEFAULT FALSE"] },
-                    { name: "is_teacher", type: "BOOLEAN", constraints: ["DEFAULT FALSE"] },
-                    { name: "points", type: "INTEGER", constraints: ["DEFAULT 0"] },
-                    { name: "solved_challenges", type: "INTEGER", constraints: ["DEFAULT 0"] },
-                    { name: "created_at", type: "TIMESTAMP", constraints: ["DEFAULT CURRENT_TIMESTAMP"] }
-                ]
-            },
-            {
-                name: "challenges",
-                description: "SQL challenges and exercises",
-                columns: [
-                    { name: "id", type: "INTEGER", constraints: ["PRIMARY KEY", "AUTO_INCREMENT"] },
-                    { name: "title", type: "VARCHAR(255)", constraints: ["NOT NULL"] },
-                    { name: "statement", type: "TEXT", constraints: ["NOT NULL"] },
-                    { name: "solution", type: "TEXT", constraints: ["NOT NULL"] },
-                    { name: "level", type: "INTEGER", constraints: ["NOT NULL", "DEFAULT 1"] },
-                    { name: "points", type: "INTEGER", constraints: ["NOT NULL", "DEFAULT 100"] },
-                    { name: "creator_id", type: "INTEGER", constraints: ["FOREIGN KEY"] },
-                    { name: "institution_id", type: "INTEGER", constraints: ["FOREIGN KEY"] },
-                    { name: "created_at", type: "TIMESTAMP", constraints: ["DEFAULT CURRENT_TIMESTAMP"] }
-                ]
-            },
-            {
-                name: "institutions",
-                description: "Educational institutions",
-                columns: [
-                    { name: "id", type: "INTEGER", constraints: ["PRIMARY KEY", "AUTO_INCREMENT"] },
-                    { name: "name", type: "VARCHAR(255)", constraints: ["NOT NULL", "UNIQUE"] },
-                    { name: "address", type: "TEXT", constraints: [] },
-                    { name: "created_at", type: "TIMESTAMP", constraints: ["DEFAULT CURRENT_TIMESTAMP"] }
-                ]
-            },
-            {
-                name: "user_activity",
-                description: "User activity and progress tracking",
-                columns: [
-                    { name: "id", type: "INTEGER", constraints: ["PRIMARY KEY", "AUTO_INCREMENT"] },
-                    { name: "user_id", type: "INTEGER", constraints: ["FOREIGN KEY", "NOT NULL"] },
-                    { name: "challenge_id", type: "INTEGER", constraints: ["FOREIGN KEY"] },
-                    { name: "action", type: "VARCHAR(100)", constraints: ["NOT NULL"] },
-                    { name: "points_earned", type: "INTEGER", constraints: ["DEFAULT 0"] },
-                    { name: "timestamp", type: "TIMESTAMP", constraints: ["DEFAULT CURRENT_TIMESTAMP"] }
-                ]
-            }
-        ]
-    };
+  const focusTerminal = () => {
+    const helper = document.querySelector(".xterm-helper-textarea");
+    if (helper) helper.focus();
+  };
 
-    const copyTableSchema = (tableName) => {
-        const table = databaseSchema.tables.find(t => t.name === tableName);
-        if (table) {
-            const schema = `CREATE TABLE ${tableName} (\n  ${table.columns.map(col => 
-                `${col.name} ${col.type}${col.constraints.length > 0 ? ' ' + col.constraints.join(' ') : ''}`
-            ).join(',\n  ')}\n);`;
-            navigator.clipboard.writeText(schema);
-            setCopiedTable(tableName);
-            setTimeout(() => setCopiedTable(null), 2000);
-        }
-    };
+  const MONO = {
+    fontFamily:
+      "var(--font-geist-mono), 'Geist Mono', ui-monospace, monospace",
+  };
 
-    const getConstraintIcon = (constraint) => {
-        if (constraint.includes('PRIMARY KEY')) return <Key className="h-3 w-3 text-yellow-600" />;
-        if (constraint.includes('FOREIGN KEY')) return <Database className="h-3 w-3 text-blue-600" />;
-        if (constraint.includes('UNIQUE')) return <Info className="h-3 w-3 text-green-600" />;
-        return null;
-    };
+  return (
+    <div
+      className="min-h-screen bg-[#f9f9f9] flex flex-col"
+      style={{ fontFamily: "var(--font-geist-sans), Geist, Arial, sans-serif" }}
+    >
+      <Header />
 
-    return (
-        <>
-            <Header />
-            <div className="h-screen">
+      <div className="px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-200 bg-white">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setSchemaOpen((v) => !v)}
+            className="flex items-center gap-2 px-3 py-2 rounded-md bg-white border border-gray-200 text-[13px] font-semibold text-[#030914] hover:bg-gray-50 transition"
+            aria-expanded={schemaOpen}
+          >
+            {schemaOpen ? (
+              <PanelLeftClose className="h-3.5 w-3.5 text-gray-500" />
+            ) : (
+              <PanelLeftOpen className="h-3.5 w-3.5 text-gray-500" />
+            )}
+            Schema
+          </button>
+          <div>
+            <h1 className="text-[18px] font-bold text-[#030914] tracking-tight leading-tight">
+              SQL Playground
+            </h1>
+            <p className="text-[12px] text-gray-500">
+              Experiment freely on sample datasets — no pressure, no scoring.
+            </p>
+          </div>
+        </div>
 
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="flex items-center gap-2 px-3 py-2 rounded-md bg-white border border-gray-200 text-[13px] font-semibold text-[#030914] hover:bg-gray-50 transition"
+          >
+            <Database className="h-3.5 w-3.5 text-gray-500" />
+            {activeDataset.label}
+            <ChevronDown className="h-3.5 w-3.5 text-gray-500" />
+          </button>
+          <button
+            type="button"
+            onClick={focusTerminal}
+            className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#19aa59] hover:bg-[#15934d] text-white text-[13px] font-semibold transition"
+          >
+            <Play className="h-3.5 w-3.5 fill-white" />
+            Run query
+          </button>
+        </div>
+      </div>
 
-                {/* Main Content */}
-                <div className={`h-[calc(100vh-64px)] ${isMobile ? 'flex flex-col' : (isColumnLayout ? 'grid grid-cols-2' : 'flex flex-col')}`}>
-                    {/* Terminal Section */}
-                    <div className={`flex flex-col ${!isMobile && isColumnLayout ? 'border-r' : ''}`}>
-                        <div className="p-3 bg-gray-50 border-b flex justify-between items-start">
-                            <div>
-                                <h3 className="flex items-center gap-2 font-semibold">
-                                    <Database className="h-5 w-5" />
-                                    SQL Terminal
-                                </h3>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                    Execute SQL queries and see results in real-time
-                                </p>
-                            </div>
-                            {!isMobile && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setIsColumnLayout(!isColumnLayout)}
-                                    className="h-8 px-2 mt-1"
-                                >
-                                    {isColumnLayout ? <Rows className="h-3 w-3" /> : <LayoutGrid className="h-3 w-3" />}
-                                </Button>
-                            )}
-                        </div>
-                        <div className="flex-1">
-                            <XTerminal 
-                                mode="shell"
-                                className="w-full h-full"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Database Schema Section */}
-                    <div className="flex flex-col">
-                        <div className="p-3 bg-gray-50 border-b">
-                            <h3 className="flex items-center gap-2 font-semibold">
-                                <Table className="h-5 w-5" />
-                                Database Schema
-                            </h3>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                Available tables and their structure for your queries
-                            </p>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-4">
-                            <div className="space-y-4">
-                                {databaseSchema.tables.map((table) => (
-                                    <div key={table.name} className="border rounded-lg p-4">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div>
-                                                <h3 className="font-semibold text-lg">{table.name}</h3>
-                                                <p className="text-sm text-muted-foreground">{table.description}</p>
-                                            </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => copyTableSchema(table.name)}
-                                                className="flex items-center gap-1"
-                                            >
-                                                {copiedTable === table.name ? (
-                                                    <Check className="h-4 w-4 text-green-600" />
-                                                ) : (
-                                                    <Copy className="h-4 w-4" />
-                                                )}
-                                                {copiedTable === table.name ? "Copied!" : "Copy Schema"}
-                                            </Button>
-                                        </div>
-                                        
-                                        <div className="space-y-2">
-                                            {table.columns.map((column) => (
-                                                <div key={column.name} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-medium">{column.name}</span>
-                                                        <Badge variant="outline" className="text-xs">
-                                                            {column.type}
-                                                        </Badge>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        {column.constraints.map((constraint, index) => (
-                                                            <div key={index} className="flex items-center gap-1">
-                                                                {getConstraintIcon(constraint)}
-                                                                <Badge variant="secondary" className="text-xs">
-                                                                    {constraint}
-                                                                </Badge>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Sample Data Preview */}
-                                        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                                            <h4 className="font-medium text-sm mb-2">Sample Query:</h4>
-                                            <code className="text-xs bg-white p-2 rounded block">
-                                                SELECT * FROM {table.name} LIMIT 5;
-                                            </code>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+      <div className="flex-1 relative" style={{ minHeight: "calc(100vh - 165px)" }}>
+        {/* Schema drawer: slides in from the left on top of the terminal */}
+        <aside
+          className={`absolute inset-y-0 left-0 z-30 w-[300px] bg-white border-r border-gray-200 shadow-xl flex flex-col overflow-hidden transition-transform duration-200 ${
+            schemaOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2 px-3.5 py-3 bg-[#f9f9f9] border-b border-gray-200">
+            <div className="flex items-center gap-2">
+              <FolderTree className="h-3.5 w-3.5 text-gray-500" />
+              <span
+                className="text-[10px] font-bold text-gray-500"
+                style={{ letterSpacing: "1.2px" }}
+              >
+                SCHEMA
+              </span>
             </div>
-        </>
-    );
+            <button
+              type="button"
+              onClick={() => setSchemaOpen(false)}
+              className="inline-flex h-6 w-6 items-center justify-center rounded-md text-gray-500 hover:text-[#030914] hover:bg-white"
+              aria-label="Close schema drawer"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+            {tables.map((table) => {
+              const isOpen = expandedTable === table.name;
+              return (
+                <div key={table.name}>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedTable(isOpen ? null : table.name)}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition ${
+                      isOpen ? "bg-[#f9f9f9]" : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <Table2 className="h-3.5 w-3.5 text-gray-500 shrink-0" />
+                    <span className="text-xs font-semibold text-[#030914] truncate">
+                      {table.name}{" "}
+                      <span className="text-gray-400 font-normal">
+                        ({table.count})
+                      </span>
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <div className="pl-7 pr-3 py-1 space-y-0.5" style={MONO}>
+                      {table.columns.map((col) => (
+                        <div
+                          key={col.name}
+                          className="flex items-center gap-2 text-[11px] text-gray-500 py-0.5"
+                        >
+                          {constraintIcon(col.constraints)}
+                          <span className="truncate">{col.name}</span>
+                          <span className="ml-auto text-gray-400">
+                            {shortType(col.type)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </aside>
+
+        {/* Click-outside backdrop when drawer is open */}
+        {schemaOpen && (
+          <button
+            type="button"
+            aria-label="Close schema drawer"
+            onClick={() => setSchemaOpen(false)}
+            className="absolute inset-0 z-20 bg-black/20"
+          />
+        )}
+
+        {/* Terminal — always full width of the viewport */}
+        <section className="absolute inset-0 z-10 bg-[#030914] flex flex-col overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#0a1628] border-b border-[#1f2937]">
+            <span className="flex items-center gap-1.5">
+              <span className="w-[9px] h-[9px] rounded-full bg-[#ef4444]" />
+              <span className="w-[9px] h-[9px] rounded-full bg-[#f59e0b]" />
+              <span className="w-[9px] h-[9px] rounded-full bg-[#10b981]" />
+            </span>
+            <span
+              className="ml-2 text-[11px] font-medium text-gray-400"
+              style={MONO}
+            >
+              query.sql
+            </span>
+          </div>
+          <div className="flex-1 min-h-0 px-4 py-3">
+            <XTerminal
+              mode="shell"
+              databaseName={activeDataset.key}
+              className="w-full h-full"
+            />
+          </div>
+        </section>
+      </div>
+    </div>
+  );
 }

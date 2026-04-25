@@ -1,382 +1,366 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import Header from "@/components/header";
-import { ChallengeCard } from "@/components/ChallengeCard";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  Database,
-  TrendingUp,
-  Users,
-  Target,
-  Trophy,
-  Search,
-  Filter,
-  Zap,
-  Award,
-  AlertCircle
-} from "lucide-react";
+import { Database, Search, Users, AlertCircle } from "lucide-react";
 
-// Stats Card Component
-function StatsCard({ icon: Icon, label, value, color }) {
-  return (
-    <Card className="border-0 shadow-sm">
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-500 mb-1">{label}</p>
-            <p className="text-2xl font-bold text-[#030914]">{value}</p>
-          </div>
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
-            <Icon className="h-6 w-6 text-white" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+const FONT_STYLE = {
+  fontFamily: "var(--font-geist-sans), Geist, Arial, sans-serif",
+};
 
-// Level Header Component
-function LevelHeader({ level, count }) {
-  const levelConfig = {
-    1: { label: "Beginner", color: "bg-emerald-500", textColor: "text-emerald-700", bgColor: "bg-emerald-50" },
-    2: { label: "Easy", color: "bg-[#19aa59]", textColor: "text-[#19aa59]", bgColor: "bg-[#19aa59]/10" },
-    3: { label: "Medium", color: "bg-amber-500", textColor: "text-amber-700", bgColor: "bg-amber-50" },
-    4: { label: "Hard", color: "bg-orange-500", textColor: "text-orange-700", bgColor: "bg-orange-50" },
-    5: { label: "Expert", color: "bg-red-500", textColor: "text-red-700", bgColor: "bg-red-50" },
-  };
+const MONO_STYLE = {
+  fontFamily: "var(--font-geist-mono), 'Geist Mono', ui-monospace, monospace",
+};
 
-  const config = levelConfig[level] || levelConfig[1];
+const LEVEL_CONFIG = {
+  1: { label: "EASY", dot: "var(--accent-green)" },
+  2: { label: "MEDIUM", dot: "#f59e0b" },
+  3: { label: "HARD", dot: "#f97316" },
+  4: { label: "EXPERT", dot: "#ef4444" },
+  5: { label: "MASTER", dot: "#a855f7" },
+};
 
-  return (
-    <div className="flex items-center gap-4 mb-6">
-      <div className={`flex items-center gap-2 px-4 py-2 rounded-xl ${config.bgColor}`}>
-        <div className={`w-2 h-2 rounded-full ${config.color}`}></div>
-        <span className={`font-semibold ${config.textColor}`}>
-          Level {level} - {config.label}
-        </span>
-      </div>
-      <div className="h-px bg-gray-200 flex-1"></div>
-      <span className="text-sm text-gray-500 font-medium">
-        {count} challenge{count !== 1 ? 's' : ''}
-      </span>
-    </div>
-  );
-}
-
-export default function Challenges() {
+export default function ChallengesPage() {
   const [challenges, setChallenges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLevel, setSelectedLevel] = useState(null);
-  const [stats, setStats] = useState({
-    total: 0,
-    completed: 0,
-    averageScore: 0,
-    totalSolves: 0
-  });
 
   useEffect(() => {
-    const fetchChallenges = async () => {
+    let cancelled = false;
+
+    async function load() {
       try {
-        setLoading(true);
-
-        const userData = localStorage.getItem('user');
-        if (!userData) {
-          throw new Error('User not authenticated');
-        }
-
+        const userData = localStorage.getItem("user");
+        if (!userData) throw new Error("User not authenticated");
         const parsedUser = JSON.parse(userData);
 
-        const userResponse = await fetch(`/api/users/${parsedUser.id}`);
-        if (!userResponse.ok) {
-          throw new Error('Failed to fetch user data');
-        }
+        let fullUser = parsedUser;
+        try {
+          const userResponse = await fetch(`/api/users/${parsedUser.id}`);
+          if (userResponse.ok) {
+            fullUser = await userResponse.json();
+            localStorage.setItem("user", JSON.stringify(fullUser));
+          }
+        } catch {}
+        if (cancelled) return;
+        setUser(fullUser);
 
-        const user = await userResponse.json();
-        setUser(user);
-        localStorage.setItem('user', JSON.stringify(user));
-
-        let url = '/api/challenges';
-
-        if (user.isTeacher && !user.isAdmin && user.institution_id) {
-          url = `/api/challenges?institution=${user.institution_id}`;
+        let url = "/api/challenges";
+        if (fullUser.isTeacher && !fullUser.isAdmin && fullUser.institution_id) {
+          url = `/api/challenges?institution=${fullUser.institution_id}`;
         }
 
         const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error('Failed to fetch challenges');
-        }
+        if (!response.ok) throw new Error("Failed to fetch challenges");
         const data = await response.json();
-        const challengesArray = Array.isArray(data) ? data : (data.challenges || []);
-        setChallenges(challengesArray);
-
-        const total = challengesArray.length;
-        const totalSolves = challengesArray.reduce((sum, challenge) => sum + (challenge.solves || 0), 0);
-        const averageScore = total > 0 ? Math.round(challengesArray.reduce((sum, challenge) => sum + (challenge.current_score || 0), 0) / total) : 0;
-
-        setStats({
-          total,
-          completed: 0,
-          averageScore,
-          totalSolves
-        });
+        if (cancelled) return;
+        setChallenges(Array.isArray(data) ? data : data.challenges || []);
       } catch (err) {
-        setError(err.message);
+        if (!cancelled) setError(err.message);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    };
+    }
 
-    fetchChallenges();
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Filter challenges based on search and level
-  const filteredChallenges = challenges.filter(challenge => {
-    const matchesSearch = searchTerm === "" ||
-      challenge.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      challenge.statement?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLevel = selectedLevel === null || challenge.level === selectedLevel;
+  const filtered = challenges.filter((c) => {
+    const q = searchTerm.trim().toLowerCase();
+    const matchesSearch =
+      q === "" ||
+      c.name?.toLowerCase().includes(q) ||
+      c.statement?.toLowerCase().includes(q);
+    const matchesLevel = selectedLevel === null || c.level === selectedLevel;
     return matchesSearch && matchesLevel;
   });
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-2 border-[#19aa59] border-t-transparent mx-auto mb-4"></div>
-              <p className="text-lg text-gray-500">Loading challenges...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <Card className="border-0 shadow-sm max-w-md mx-auto">
-            <CardContent className="py-12">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <AlertCircle className="h-8 w-8 text-red-500" />
-                </div>
-                <h3 className="text-xl font-semibold text-[#030914] mb-2">Error Loading Challenges</h3>
-                <p className="text-gray-500">{error}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+  const totalChallenges = challenges.length;
+  const totalSolves = challenges.reduce((sum, c) => sum + (c.solves || 0), 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div
+      className="min-h-screen bg-[#f9f9f9] text-[var(--navy-dark)]"
+      style={FONT_STYLE}
+    >
       <Header />
 
-      {/* Hero Section */}
-      <section className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#19aa59] to-emerald-600 rounded-xl flex items-center justify-center">
-                  <Trophy className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl lg:text-4xl font-bold text-[#030914]">
-                    SQL Challenges
-                  </h1>
-                </div>
-              </div>
-              <p className="text-lg text-gray-500 max-w-2xl">
-                Master SQL through interactive challenges. Solve problems, earn points, and climb the leaderboard.
-              </p>
+      <section className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-12 py-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center gap-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-100 border border-gray-200">
+                <Database className="h-4 w-4 text-gray-700" />
+              </span>
+              <h1 className="text-[28px] font-semibold text-[var(--navy-dark)] tracking-[-0.6px] leading-none">
+                SQL Challenges
+              </h1>
             </div>
+            <p className="text-[14px] text-gray-500 leading-[1.5] max-w-2xl">
+              Master SQL through interactive challenges. Solve problems, earn
+              points, and climb the leaderboard.
+            </p>
+          </div>
 
-            {/* Quick Stats */}
-            <div className="flex gap-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-[#19aa59]">{stats.total}</div>
-                <div className="text-sm text-gray-500">Challenges</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-[#030914]">{stats.totalSolves}</div>
-                <div className="text-sm text-gray-500">Total Solves</div>
-              </div>
-            </div>
+          <div className="flex items-center gap-8">
+            <HeroStat label="CHALLENGES" value={totalChallenges} />
+            <span className="block w-px h-10 bg-gray-200" />
+            <HeroStat label="TOTAL SOLVES" value={totalSolves} />
           </div>
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatsCard
-            icon={Database}
-            label="Total Challenges"
-            value={stats.total}
-            color="bg-gradient-to-br from-[#19aa59] to-emerald-600"
-          />
-          <StatsCard
-            icon={Users}
-            label="Total Solves"
-            value={stats.totalSolves}
-            color="bg-gradient-to-br from-blue-500 to-indigo-600"
-          />
-          <StatsCard
-            icon={TrendingUp}
-            label="Avg. Score"
-            value={stats.averageScore}
-            color="bg-gradient-to-br from-violet-500 to-purple-600"
-          />
-          <StatsCard
-            icon={Target}
-            label="Your Progress"
-            value={`${stats.completed}/${stats.total}`}
-            color="bg-gradient-to-br from-amber-500 to-orange-600"
-          />
-        </div>
-
-        {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-8">
-          <div className="relative flex-1 max-w-xl">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <Input
-              placeholder="Search challenges by name or description..."
+      <main className="max-w-7xl mx-auto px-8 pt-7 pb-8 flex flex-col gap-7">
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+            <input
+              type="text"
+              name="challenge-search"
+              aria-label="Search challenges"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-12 h-12 text-base border-gray-200 focus:border-[#19aa59] focus:ring-[#19aa59]/20 rounded-xl"
+              placeholder="Search by name, topic, or table…"
+              className="w-full h-[42px] pl-10 pr-4 rounded-lg border border-gray-200 bg-white text-[13px] text-[var(--navy-dark)] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--accent-green)]/20 focus:border-[var(--accent-green)]"
             />
           </div>
 
-          {/* Level Filter Buttons */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
-            <Button
-              variant={selectedLevel === null ? "default" : "outline"}
+          <div className="flex items-center gap-2">
+            <FilterChip
+              active={selectedLevel === null}
               onClick={() => setSelectedLevel(null)}
-              className={selectedLevel === null
-                ? "bg-[#19aa59] hover:bg-[#15934d] text-white"
-                : "border-gray-200 hover:bg-gray-50"
-              }
             >
-              All
-            </Button>
-            {[1, 2, 3, 4, 5].map(level => (
-              <Button
-                key={level}
-                variant={selectedLevel === level ? "default" : "outline"}
-                onClick={() => setSelectedLevel(level)}
-                className={selectedLevel === level
-                  ? "bg-[#19aa59] hover:bg-[#15934d] text-white"
-                  : "border-gray-200 hover:bg-gray-50"
-                }
+              All challenges
+            </FilterChip>
+            {[1, 2, 3, 4, 5].map((lvl) => (
+              <FilterChip
+                key={lvl}
+                active={selectedLevel === lvl}
+                onClick={() => setSelectedLevel(lvl)}
               >
-                L{level}
-              </Button>
+                Level {lvl}
+              </FilterChip>
             ))}
           </div>
         </div>
 
-        {/* No Institution Warning */}
-        {user && !user.institution_id ? (
-          <Card className="border-0 shadow-sm border-l-4 border-l-amber-500">
-            <CardContent className="py-8">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <AlertCircle className="h-6 w-6 text-amber-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-[#030914] mb-1">No Institution Assigned</h3>
-                  <p className="text-gray-500">
-                    You don&apos;t have an institution assigned. Please contact your administrator to get access to challenges.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {loading ? (
+          <div className="flex items-center justify-center py-24">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-2 border-[var(--accent-green)] border-t-transparent mx-auto mb-3" />
+              <p className="text-[13px] text-gray-500">Loading challenges…</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="rounded-xl bg-white border border-gray-200 p-10 text-center">
+            <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <AlertCircle className="h-6 w-6 text-red-500" />
+            </div>
+            <h3 className="text-[15px] font-semibold text-[var(--navy-dark)] mb-1">
+              Error loading challenges
+            </h3>
+            <p className="text-[13px] text-gray-500">{error}</p>
+          </div>
+        ) : user && !user.institution_id ? (
+          <div className="rounded-xl bg-white border border-gray-200 border-l-4 border-l-amber-500 p-7 flex items-start gap-4">
+            <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="text-[15px] font-semibold text-[var(--navy-dark)] mb-1">
+                No institution assigned
+              </h3>
+              <p className="text-[13px] text-gray-500">
+                You don&apos;t have an institution assigned. Please contact your
+                administrator to get access to challenges.
+              </p>
+            </div>
+          </div>
         ) : (
-          <div className="space-y-10">
-            {/* Group challenges by level */}
-            {[1, 2, 3, 4, 5].map(level => {
-              const levelChallenges = filteredChallenges.filter(challenge => challenge.level === level);
-              if (levelChallenges.length === 0) return null;
-
+          <div className="flex flex-col gap-7">
+            {[1, 2, 3, 4, 5].map((lvl) => {
+              const items = filtered.filter((c) => c.level === lvl);
+              if (items.length === 0) return null;
               return (
-                <div key={level}>
-                  <LevelHeader level={level} count={levelChallenges.length} />
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {levelChallenges.map((challenge) => (
-                      <ChallengeCard
-                        key={challenge.id}
-                        challenge={challenge}
-                        userId={user?.id}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <LevelGroup key={lvl} level={lvl} count={items.length}>
+                  {items.map((c) => (
+                    <ChallengeRow key={c.id} challenge={c} />
+                  ))}
+                </LevelGroup>
               );
             })}
 
-            {/* No challenges found */}
-            {filteredChallenges.length === 0 && (
-              <Card className="border-0 shadow-sm">
-                <CardContent className="py-16">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <Database className="h-8 w-8 text-gray-400" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-[#030914] mb-2">
-                      {searchTerm || selectedLevel ? 'No challenges found' : 'No Challenges Available'}
-                    </h3>
-                    <p className="text-gray-500 max-w-md mx-auto">
-                      {searchTerm || selectedLevel
-                        ? 'Try adjusting your search or filter criteria.'
-                        : 'There are no challenges available for your institution at the moment.'}
-                    </p>
-                    {(searchTerm || selectedLevel) && (
-                      <Button
-                        variant="outline"
-                        className="mt-4 border-[#19aa59]/30 text-[#19aa59] hover:bg-[#19aa59]/10"
-                        onClick={() => {
-                          setSearchTerm("");
-                          setSelectedLevel(null);
-                        }}
-                      >
-                        Clear Filters
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+            {filtered.length === 0 && (
+              <div className="rounded-xl bg-white border border-gray-200 p-16 text-center">
+                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Database className="h-6 w-6 text-gray-400" />
+                </div>
+                <h3 className="text-[15px] font-semibold text-[var(--navy-dark)] mb-1">
+                  {searchTerm || selectedLevel
+                    ? "No challenges found"
+                    : "No challenges available"}
+                </h3>
+                <p className="text-[13px] text-gray-500 max-w-md mx-auto">
+                  {searchTerm || selectedLevel
+                    ? "Try adjusting your search or filter criteria."
+                    : "There are no challenges available for your institution at the moment."}
+                </p>
+                {(searchTerm || selectedLevel) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setSelectedLevel(null);
+                    }}
+                    className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-gray-200 text-[12px] font-medium text-gray-500 hover:text-[var(--navy-dark)] hover:bg-gray-50 transition-colors"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}
-
-        {/* Motivational Footer */}
-        {filteredChallenges.length > 0 && (
-          <div className="mt-12 text-center py-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#19aa59]/10 text-[#19aa59] text-sm font-medium mb-4">
-              <Zap className="h-4 w-4" />
-              Challenge yourself!
-            </div>
-            <p className="text-gray-500 max-w-md mx-auto">
-              Each challenge you solve improves your skills and moves you up the leaderboard. Keep going!
-            </p>
-          </div>
-        )}
-      </div>
+      </main>
     </div>
+  );
+}
+
+function HeroStat({ label, value }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p
+        className="text-[11px] font-semibold text-gray-500 uppercase"
+        style={{ letterSpacing: "1px" }}
+      >
+        {label}
+      </p>
+      <p
+        className="text-[28px] font-semibold text-[var(--navy-dark)] tracking-[-0.5px] leading-none"
+        style={MONO_STYLE}
+      >
+        {value.toLocaleString()}
+      </p>
+    </div>
+  );
+}
+
+function FilterChip({ active, children, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-[14px] py-[7px] rounded-md text-[11px] font-semibold whitespace-nowrap transition-colors ${
+        active
+          ? "bg-[var(--navy-dark)] text-white border border-[var(--navy-dark)]"
+          : "bg-white text-gray-500 border border-gray-200 hover:text-[var(--navy-dark)]"
+      }`}
+      style={{ letterSpacing: "0.2px" }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function LevelGroup({ level, count, children }) {
+  const config = LEVEL_CONFIG[level] || LEVEL_CONFIG[1];
+  return (
+    <div className="flex flex-col gap-3.5 w-full">
+      <div className="flex items-center gap-3.5 px-1">
+        <div className="flex items-center gap-2">
+          <span
+            className="block h-[7px] w-[7px] rounded-full"
+            style={{ backgroundColor: config.dot }}
+          />
+          <span
+            className="text-[11px] font-bold text-[var(--navy-dark)]"
+            style={{ letterSpacing: "1px" }}
+          >
+            LEVEL {level} · {config.label}
+          </span>
+        </div>
+        <span className="flex-1 h-px bg-gray-200" />
+        <span
+          className="text-[11px] font-semibold text-gray-500"
+          style={{ letterSpacing: "0.3px" }}
+        >
+          {count} challenge{count !== 1 ? "s" : ""}
+        </span>
+      </div>
+      <div className="flex flex-col gap-3.5">{children}</div>
+    </div>
+  );
+}
+
+function ChallengeRow({ challenge }) {
+  const config = LEVEL_CONFIG[challenge.level] || LEVEL_CONFIG[1];
+  const score = challenge.current_score ?? challenge.initial_score ?? 0;
+  const solves = challenge.solves || 0;
+  const title =
+    challenge.name || challenge.statement?.split(".")[0] || "Untitled";
+  const description =
+    challenge.name && challenge.statement
+      ? challenge.statement
+      : challenge.statement || "";
+
+  return (
+    <Link
+      href={`/challenges/${challenge.id}`}
+      className="rounded-xl bg-white border border-gray-200 px-5 py-[18px] flex flex-col gap-3 hover:border-gray-300 transition-all group"
+      style={{ boxShadow: "0 1px 3px rgba(10,18,32,0.04)" }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span
+            className="block h-[6px] w-[6px] rounded-full"
+            style={{ backgroundColor: config.dot }}
+          />
+          <span
+            className="text-[10px] font-bold text-[var(--navy-dark)]"
+            style={{ letterSpacing: "1.2px" }}
+          >
+            {config.label}
+          </span>
+        </div>
+        <span
+          className="text-[11px] font-medium text-gray-500"
+          style={MONO_STYLE}
+        >
+          {score} pts
+        </span>
+      </div>
+
+      <h3 className="text-[15px] font-semibold text-[var(--navy-dark)] tracking-[-0.1px] leading-tight">
+        {title}
+      </h3>
+
+      {description && (
+        <p className="text-[13px] text-gray-500 leading-[1.5] line-clamp-2">
+          {description}
+        </p>
+      )}
+
+      <div className="flex items-center justify-between pt-2">
+        <div className="flex items-center gap-1.5 text-gray-500">
+          <Users className="h-3 w-3" />
+          <span className="text-[11px] font-medium">
+            {solves} solve{solves === 1 ? "" : "s"}
+          </span>
+        </div>
+        <span className="text-[12px] font-semibold text-[#15934d]">
+          Open{" "}
+          <span className="inline-block transition-transform group-hover:translate-x-0.5">
+            →
+          </span>
+        </span>
+      </div>
+    </Link>
   );
 }

@@ -246,10 +246,148 @@ async function main() {
 
   console.log('✅ Challenges created');
 
-  // Create sample lessons
-  const lessons = [
+  // Wipe and reseed the modules / atomic lessons / progress.
+  await prisma.lessonProgress.deleteMany({});
+  await prisma.lesson.deleteMany({});
+  await prisma.module.deleteMany({});
+
+  const adminCreator = createdUsers.find((u) => u.isAdmin) ||
+    createdUsers.find((u) => u.isTeacher);
+
+  const modulesSpec = [
     {
-      title: "Introduction to SQL",
+      title: "SQL Fundamentals",
+      description:
+        "The essentials: SELECT, FROM, WHERE, ORDER BY. Build your first queries.",
+      order: 1,
+      lessons: [
+        {
+          title: "Introduction to SQL",
+          description:
+            "What SQL is, why relational databases use it, and the building blocks you will meet in every query.",
+          content: `SQL (Structured Query Language) is the standard language for talking to relational databases. Every query you write asks the database for rows from one or more **tables** — collections of data organised into columns and rows.\n\n## What a query looks like\n\n\`\`\`sql\nSELECT name, email FROM users;\n\`\`\`\n\nThe \`SELECT\` keyword tells the database which columns you want, and \`FROM\` tells it which table to read from. SQL is not case-sensitive, but capitalising keywords is the convention.`,
+        },
+        {
+          title: "SELECT statement basics",
+          description:
+            "Retrieve rows from a table. The most common SQL operation and the foundation of every query.",
+          content: `The \`SELECT\` statement retrieves rows from one or more tables. It is the most common SQL operation and forms the foundation of every query.\n\n## Basic syntax\n\n\`\`\`sql\nSELECT column1, column2\nFROM table_name;\n\`\`\`\n\nUse \`*\` to grab every column, but be explicit when you can — it's clearer and faster:\n\n\`\`\`sql\nSELECT * FROM products;\n\`\`\``,
+        },
+        {
+          title: "WHERE & comparison operators",
+          description:
+            "Filter rows with predicates. Combine conditions with AND, OR, and NOT.",
+          content: `The \`WHERE\` clause filters rows so you only get the ones you care about. You can compare with \`=\`, \`<>\`, \`<\`, \`>\`, \`<=\`, \`>=\`, and combine predicates with \`AND\`, \`OR\`, \`NOT\`.\n\n## Filtering by a value\n\n\`\`\`sql\nSELECT name, age\nFROM users\nWHERE age >= 18;\n\`\`\`\n\nFor sets of values, use \`IN\`. For ranges, \`BETWEEN\`. For text patterns, \`LIKE\` with \`%\` and \`_\` wildcards.`,
+        },
+        {
+          title: "ORDER BY and LIMIT",
+          description:
+            "Sort the result set and cap the number of rows returned.",
+          content: `\`ORDER BY\` sorts rows by one or more columns. Add \`DESC\` for descending. \`LIMIT\` caps how many rows the database returns — useful for top-N queries and pagination.\n\n## Top-5 most expensive products\n\n\`\`\`sql\nSELECT name, price\nFROM products\nORDER BY price DESC\nLIMIT 5;\n\`\`\`\n\nWhen you sort and limit together, the database first orders the full result, then takes the first \`N\` rows.`,
+        },
+      ],
+    },
+    {
+      title: "Joins & Relationships",
+      description:
+        "Combine data across tables with INNER, LEFT, RIGHT, and self-joins.",
+      order: 2,
+      lessons: [
+        {
+          title: "Why we need joins",
+          description:
+            "Relational data is split across tables. Joins put it back together along shared keys.",
+          content: `Real schemas split data across many tables to avoid duplication. Each table holds one kind of thing — \`users\`, \`orders\`, \`products\` — connected by **foreign keys**. To answer questions that span tables ("which users placed an order last week?") you need a **join**.\n\n## A schema in two tables\n\n\`\`\`sql\n-- users(id, name)\n-- orders(id, user_id, total)\n\`\`\`\n\nA join walks the \`orders.user_id\` foreign key back to \`users.id\` so each order row can be paired with the user who placed it.`,
+        },
+        {
+          title: "INNER JOIN",
+          description:
+            "Return only rows that match in both tables. The default and most common join.",
+          content: `\`INNER JOIN\` returns rows where the join condition is true in **both** tables. Rows with no match on either side are dropped.\n\n## Orders with their customer\n\n\`\`\`sql\nSELECT o.id, u.name, o.total\nFROM orders o\nINNER JOIN users u ON u.id = o.user_id;\n\`\`\`\n\nUse short table aliases (\`o\`, \`u\`) and qualify every column — it stops ambiguous-column errors when two tables share a name.`,
+        },
+        {
+          title: "LEFT and RIGHT JOIN",
+          description:
+            "Keep all rows from one side, even if there's no match on the other.",
+          content: `\`LEFT JOIN\` returns every row from the left table, plus the matching row from the right table when one exists. Unmatched right-side columns come back as \`NULL\`.\n\n## Users and their order count (including users with zero orders)\n\n\`\`\`sql\nSELECT u.name, COUNT(o.id) AS order_count\nFROM users u\nLEFT JOIN orders o ON o.user_id = u.id\nGROUP BY u.name;\n\`\`\`\n\n\`RIGHT JOIN\` is the mirror image — most engines and developers prefer to swap the table order and use \`LEFT JOIN\`.`,
+        },
+        {
+          title: "Self-joins and aliases",
+          description:
+            "Join a table to itself to compare rows within the same table.",
+          content: `Sometimes the relationship you need is **inside** a single table — employees who report to other employees, products replacing other products. A self-join joins a table to itself, using aliases to tell the two copies apart.\n\n## Employees and their manager\n\n\`\`\`sql\nSELECT e.name AS employee, m.name AS manager\nFROM employees e\nLEFT JOIN employees m ON m.id = e.manager_id;\n\`\`\`\n\n\`LEFT JOIN\` keeps top-level employees (those with no manager) in the result.`,
+        },
+      ],
+    },
+    {
+      title: "Aggregations",
+      description:
+        "Group rows, summarise data, and filter aggregates with HAVING.",
+      order: 3,
+      lessons: [
+        {
+          title: "COUNT, SUM, AVG",
+          description:
+            "Reduce many rows to one number. The starter aggregate functions.",
+          content: `Aggregate functions take many rows and return one value. The three you'll use most are \`COUNT\` (how many), \`SUM\` (total), and \`AVG\` (mean).\n\n## Order totals at a glance\n\n\`\`\`sql\nSELECT\n  COUNT(*)   AS order_count,\n  SUM(total) AS revenue,\n  AVG(total) AS avg_order_value\nFROM orders;\n\`\`\`\n\nWith no \`GROUP BY\`, aggregates collapse the entire table to a single row.`,
+        },
+        {
+          title: "MIN and MAX",
+          description: "Pick the smallest or largest value in a column.",
+          content: `\`MIN\` and \`MAX\` return the smallest and largest values. They work on numbers, dates, and strings (lexicographic order).\n\n## Cheapest and most expensive product\n\n\`\`\`sql\nSELECT MIN(price) AS cheapest,\n       MAX(price) AS most_expensive\nFROM products;\n\`\`\`\n\nTo find the **product** at that price (not just the price itself), you'll usually combine \`MAX\` with a subquery or \`ORDER BY ... LIMIT 1\`.`,
+        },
+        {
+          title: "GROUP BY",
+          description:
+            "Compute aggregates per group: per category, per day, per user.",
+          content: `\`GROUP BY\` partitions rows into groups so each aggregate is computed per group instead of for the whole table.\n\n## Revenue per product category\n\n\`\`\`sql\nSELECT category,\n       SUM(price * quantity) AS revenue\nFROM order_items\nGROUP BY category\nORDER BY revenue DESC;\n\`\`\`\n\nEvery non-aggregated column in the \`SELECT\` list must appear in \`GROUP BY\` (or be wrapped in an aggregate).`,
+        },
+        {
+          title: "HAVING vs WHERE",
+          description:
+            "Filter individual rows with WHERE, filter groups with HAVING.",
+          content: `\`WHERE\` filters rows **before** they're grouped. \`HAVING\` filters groups **after** the aggregate is computed. Mixing them up is one of the most common SQL mistakes.\n\n## Categories with more than 10 orders\n\n\`\`\`sql\nSELECT category, COUNT(*) AS order_count\nFROM order_items\nGROUP BY category\nHAVING COUNT(*) > 10;\n\`\`\`\n\nRule of thumb: if the predicate references an aggregate, it belongs in \`HAVING\`.`,
+        },
+      ],
+    },
+  ];
+
+  let totalLessons = 0;
+  for (const m of modulesSpec) {
+    const createdModule = await prisma.module.create({
+      data: {
+        title: m.title,
+        description: m.description,
+        order: m.order,
+        isPublished: true,
+      },
+    });
+    for (let i = 0; i < m.lessons.length; i++) {
+      const l = m.lessons[i];
+      await prisma.lesson.create({
+        data: {
+          title: l.title,
+          content: l.content,
+          description: l.description,
+          order: i + 1,
+          isPublished: true,
+          creator_id: adminCreator.id,
+          module_id: createdModule.id,
+        },
+      });
+      totalLessons++;
+    }
+  }
+
+  console.log(`✅ ${modulesSpec.length} modules with ${totalLessons} atomic lessons created`);
+
+  // Legacy lessons array — left empty so the existing summary line below
+  // still reports a number without crashing.
+  const lessons = [];
+  if (false) {
+    const _legacyLessons = [
+    {
+      title: "Introduction to SQL — legacy",
       content: `# Introduction to SQL
 
 ## What is SQL?
@@ -497,15 +635,9 @@ GROUP BY department;
       institution_id: createdInstitutions[2].id,
       creator_id: createdUsers.find(u => u.isTeacher && u.institution_id === createdInstitutions[2].id).id
     }
-  ];
-
-  for (const lesson of lessons) {
-    await prisma.lesson.create({
-      data: lesson,
-    });
+    ];
+    void _legacyLessons;
   }
-
-  console.log('✅ Lessons created');
 
   console.log('🎉 Database seeding completed!');
   console.log(`📊 Created ${createdInstitutions.length} institutions`);
@@ -513,7 +645,7 @@ GROUP BY department;
   console.log(`👨‍🏫 Created ${createdInstitutions.length} teachers`);
   console.log(`👑 Created 1 admin user`);
   console.log(`📚 Created ${challenges.length} challenges`);
-  console.log(`📖 Created ${lessons.length} lessons`);
+  console.log(`📖 Created ${modulesSpec.length} modules with ${totalLessons} lessons`);
 }
 
 main()

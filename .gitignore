@@ -12,3 +12,7 @@
 *.log
 src/texput.log
 src/prisma/prisma/dev.db
+
+.env
+.env.local
+.vercel
