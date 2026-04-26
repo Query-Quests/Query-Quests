@@ -44,8 +44,20 @@ model User {
   userChallenges    UserChallenge[]
   createdDatabases  ChallengeDatabase[] @relation("DatabaseCreator")
   queryAttempts     QueryAttempt[]
+  achievements      Achievement[]
 
   @@index([institution_id])
+}
+
+model Achievement {
+  id        String   @id @default(uuid())
+  code      String
+  user_id   String
+  earned_at DateTime @default(now())
+  user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, code])
+  @@index([user_id])
 }
 
 model Challenge {

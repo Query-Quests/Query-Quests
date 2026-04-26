@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromCookies } from "@/lib/auth-server";
+import { evaluateAchievements } from "@/lib/achievements-rules";
 
 // A passing /validate must have run within this window for /solve to award
 // points. Stops "validate once, replay /solve later after the dataset moves"
@@ -118,6 +119,16 @@ export async function POST(request, { params }) {
       return { userChallenge, updatedUser };
     });
 
+    // Achievement evaluation — outside the solve transaction so a slow or
+    // broken rule never rolls back the score award. Return the newly-earned
+    // codes so the client can show a toast.
+    let newlyEarned = [];
+    try {
+      newlyEarned = await evaluateAchievements({ userId });
+    } catch (err) {
+      console.error("evaluateAchievements failed:", err);
+    }
+
     // Get user's rank
     const rank = await prisma.user.count({
       where: {
@@ -171,6 +182,7 @@ export async function POST(request, { params }) {
         id: user.id,
         name: user.name,
       },
+      newlyEarnedAchievements: newlyEarned,
     });
   } catch (error) {
     console.error("Error solving challenge:", error);

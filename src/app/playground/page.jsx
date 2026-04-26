@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Header from "@/components/header";
 import XTerminal from "@/components/XTerminal";
 import {
@@ -17,92 +17,79 @@ import {
   X,
 } from "lucide-react";
 
-const DATASETS = [
-  {
-    key: "practice",
-    label: "practice_db",
-    description:
-      "Students, courses, enrollments. The default sandbox for intro challenges.",
-    tables: [
-      {
-        name: "users",
-        description: "User accounts and profiles",
-        columns: [
-          { name: "id", type: "INTEGER", constraints: ["PRIMARY KEY", "AUTO_INCREMENT"] },
-          { name: "name", type: "VARCHAR(255)", constraints: ["NOT NULL"] },
-          { name: "email", type: "VARCHAR(255)", constraints: ["UNIQUE", "NOT NULL"] },
-          { name: "alias", type: "VARCHAR(100)", constraints: [] },
-          { name: "institution_id", type: "INTEGER", constraints: ["FOREIGN KEY"] },
-          { name: "is_admin", type: "BOOLEAN", constraints: ["DEFAULT FALSE"] },
-          { name: "is_teacher", type: "BOOLEAN", constraints: ["DEFAULT FALSE"] },
-          { name: "points", type: "INTEGER", constraints: ["DEFAULT 0"] },
-          { name: "solved_challenges", type: "INTEGER", constraints: ["DEFAULT 0"] },
-          { name: "created_at", type: "TIMESTAMP", constraints: ["DEFAULT CURRENT_TIMESTAMP"] },
-        ],
-      },
-      {
-        name: "challenges",
-        description: "SQL challenges and exercises",
-        columns: [
-          { name: "id", type: "INTEGER", constraints: ["PRIMARY KEY", "AUTO_INCREMENT"] },
-          { name: "title", type: "VARCHAR(255)", constraints: ["NOT NULL"] },
-          { name: "statement", type: "TEXT", constraints: ["NOT NULL"] },
-          { name: "solution", type: "TEXT", constraints: ["NOT NULL"] },
-          { name: "level", type: "INTEGER", constraints: ["NOT NULL", "DEFAULT 1"] },
-          { name: "points", type: "INTEGER", constraints: ["NOT NULL", "DEFAULT 100"] },
-          { name: "creator_id", type: "INTEGER", constraints: ["FOREIGN KEY"] },
-          { name: "institution_id", type: "INTEGER", constraints: ["FOREIGN KEY"] },
-          { name: "created_at", type: "TIMESTAMP", constraints: ["DEFAULT CURRENT_TIMESTAMP"] },
-        ],
-      },
-      {
-        name: "institutions",
-        description: "Educational institutions",
-        columns: [
-          { name: "id", type: "INTEGER", constraints: ["PRIMARY KEY", "AUTO_INCREMENT"] },
-          { name: "name", type: "VARCHAR(255)", constraints: ["NOT NULL", "UNIQUE"] },
-          { name: "address", type: "TEXT", constraints: [] },
-          { name: "created_at", type: "TIMESTAMP", constraints: ["DEFAULT CURRENT_TIMESTAMP"] },
-        ],
-      },
-      {
-        name: "user_activity",
-        description: "User activity and progress tracking",
-        columns: [
-          { name: "id", type: "INTEGER", constraints: ["PRIMARY KEY", "AUTO_INCREMENT"] },
-          { name: "user_id", type: "INTEGER", constraints: ["FOREIGN KEY", "NOT NULL"] },
-          { name: "challenge_id", type: "INTEGER", constraints: ["FOREIGN KEY"] },
-          { name: "action", type: "VARCHAR(100)", constraints: ["NOT NULL"] },
-          { name: "points_earned", type: "INTEGER", constraints: ["DEFAULT 0"] },
-          { name: "timestamp", type: "TIMESTAMP", constraints: ["DEFAULT CURRENT_TIMESTAMP"] },
-        ],
-      },
-    ],
-  },
-];
-
-function constraintIcon(constraints) {
-  if (constraints.some((c) => c.includes("PRIMARY KEY"))) {
-    return <Key className="h-3 w-3 text-amber-500 shrink-0" />;
-  }
-  if (constraints.some((c) => c.includes("FOREIGN KEY"))) {
-    return <Link2 className="h-3 w-3 text-[#19aa59] shrink-0" />;
-  }
+function constraintIconFromKey(key) {
+  if (key === "PRI") return <Key className="h-3 w-3 text-amber-500 shrink-0" />;
+  if (key === "MUL") return <Link2 className="h-3 w-3 text-[#19aa59] shrink-0" />;
   return <Hash className="h-3 w-3 text-gray-400 shrink-0" />;
 }
 
 function shortType(type) {
-  return type.replace(/\(.*\)/, "");
+  return String(type || "").replace(/\(.*\)/, "").toUpperCase();
 }
 
 export default function Playground() {
-  const [activeDataset] = useState(DATASETS[0]);
-  const [expandedTable, setExpandedTable] = useState(DATASETS[0].tables[0].name);
+  const [databases, setDatabases] = useState([]);
+  const [activeDbId, setActiveDbId] = useState(null);
+  const [schema, setSchema] = useState(null);
+  const [schemaLoading, setSchemaLoading] = useState(false);
+  const [expandedTable, setExpandedTable] = useState(null);
   const [schemaOpen, setSchemaOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Fetch the catalog of ready databases once.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/databases", { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const list = (data.databases || data || []).filter(
+          (d) => d.status === "ready",
+        );
+        setDatabases(list);
+        const practice = list.find((d) => d.mysqlDbName === "practice");
+        setActiveDbId((practice || list[0])?.id ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Whenever the selected database changes, pull its schema.
+  useEffect(() => {
+    if (!activeDbId) return;
+    let cancelled = false;
+    setSchemaLoading(true);
+    setSchema(null);
+    fetch(`/api/databases/${activeDbId}/schema`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        setSchema(data.schema || null);
+        setExpandedTable(data.schema?.tables?.[0]?.name ?? null);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setSchemaLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeDbId]);
+
+  const activeDb = useMemo(
+    () => databases.find((d) => d.id === activeDbId) || null,
+    [databases, activeDbId],
+  );
 
   const tables = useMemo(
-    () => activeDataset.tables.map((t) => ({ ...t, count: t.columns.length })),
-    [activeDataset]
+    () =>
+      (schema?.tables || []).map((t) => ({
+        ...t,
+        count: (t.columns || []).length,
+      })),
+    [schema],
   );
 
   const focusTerminal = () => {
@@ -148,14 +135,49 @@ export default function Playground() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="flex items-center gap-2 px-3 py-2 rounded-md bg-white border border-gray-200 text-[13px] font-semibold text-[#030914] hover:bg-gray-50 transition"
-          >
-            <Database className="h-3.5 w-3.5 text-gray-500" />
-            {activeDataset.label}
-            <ChevronDown className="h-3.5 w-3.5 text-gray-500" />
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setPickerOpen((v) => !v)}
+              disabled={databases.length === 0}
+              className="flex items-center gap-2 px-3 py-2 rounded-md bg-white border border-gray-200 text-[13px] font-semibold text-[#030914] hover:bg-gray-50 transition disabled:opacity-50"
+              aria-haspopup="listbox"
+              aria-expanded={pickerOpen}
+            >
+              <Database className="h-3.5 w-3.5 text-gray-500" />
+              {activeDb?.mysqlDbName ?? "Loading…"}
+              <ChevronDown className="h-3.5 w-3.5 text-gray-500" />
+            </button>
+            {pickerOpen && (
+              <div className="absolute right-0 z-40 mt-1 w-72 rounded-md border border-gray-200 bg-white shadow-lg">
+                <ul role="listbox" className="py-1 max-h-72 overflow-y-auto">
+                  {databases.map((d) => (
+                    <li key={d.id}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={d.id === activeDbId}
+                        onClick={() => {
+                          setActiveDbId(d.id);
+                          setPickerOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-[13px] hover:bg-gray-50 ${
+                          d.id === activeDbId
+                            ? "bg-[#19aa59]/5 text-[#030914]"
+                            : "text-[#030914]"
+                        }`}
+                      >
+                        <div className="font-semibold">{d.mysqlDbName}</div>
+                        <div className="text-[11px] text-gray-500 truncate">
+                          {d.name}
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={focusTerminal}
@@ -194,6 +216,16 @@ export default function Playground() {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+            {schemaLoading && (
+              <div className="px-3 py-2 text-[11px] text-gray-500">
+                Loading schema…
+              </div>
+            )}
+            {!schemaLoading && tables.length === 0 && (
+              <div className="px-3 py-2 text-[11px] text-gray-500">
+                No tables found.
+              </div>
+            )}
             {tables.map((table) => {
               const isOpen = expandedTable === table.name;
               return (
@@ -215,12 +247,12 @@ export default function Playground() {
                   </button>
                   {isOpen && (
                     <div className="pl-7 pr-3 py-1 space-y-0.5" style={MONO}>
-                      {table.columns.map((col) => (
+                      {(table.columns || []).map((col) => (
                         <div
                           key={col.name}
                           className="flex items-center gap-2 text-[11px] text-gray-500 py-0.5"
                         >
-                          {constraintIcon(col.constraints)}
+                          {constraintIconFromKey(col.key)}
                           <span className="truncate">{col.name}</span>
                           <span className="ml-auto text-gray-400">
                             {shortType(col.type)}
@@ -261,11 +293,14 @@ export default function Playground() {
             </span>
           </div>
           <div className="flex-1 min-h-0 px-4 py-3">
-            <XTerminal
-              mode="shell"
-              databaseName={activeDataset.key}
-              className="w-full h-full"
-            />
+            {activeDb && (
+              <XTerminal
+                key={activeDb.mysqlDbName}
+                mode="shell"
+                databaseName={activeDb.mysqlDbName}
+                className="w-full h-full"
+              />
+            )}
           </div>
         </section>
       </div>

@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pencil, Save, X, Trophy, Flame, Zap, Lock } from "lucide-react";
+import { ACHIEVEMENT_DEFINITIONS } from "@/lib/achievements";
+
+const ICONS = { Trophy, Flame, Zap, Lock };
 
 const FONT_SANS = "var(--font-geist-sans), Geist, Arial, sans-serif";
 const FONT_MONO = "var(--font-geist-mono), 'Geist Mono', ui-monospace, monospace";
@@ -112,18 +115,32 @@ function StatRow({ label, value, suffix }) {
   );
 }
 
-function Achievement({ icon: Icon, title, subtitle, locked }) {
+function Achievement({ icon: Icon, title, subtitle, locked, earnedAt }) {
+  const earnedLabel = earnedAt
+    ? new Date(earnedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    : null;
   return (
     <div
-      className={`flex flex-1 flex-col items-center gap-2 rounded-[10px] border border-gray-200 bg-white px-4 py-5 ${locked ? "opacity-70" : ""}`}
+      className={`flex flex-1 flex-col items-center gap-2 rounded-[10px] border bg-white px-4 py-5 ${
+        locked ? "border-gray-200 opacity-70" : "border-[#19aa59]/30"
+      }`}
     >
       <div
-        className={`flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 ${locked ? "bg-white" : "bg-gray-100"}`}
+        className={`flex h-9 w-9 items-center justify-center rounded-lg border ${
+          locked
+            ? "border-gray-200 bg-white"
+            : "border-[#19aa59]/30 bg-[#19aa59]/10"
+        }`}
       >
-        <Icon className={`h-4 w-4 ${locked ? "text-gray-400" : "text-[#030914]"}`} />
+        <Icon className={`h-4 w-4 ${locked ? "text-gray-400" : "text-[#19aa59]"}`} />
       </div>
       <div className={`text-[13px] font-semibold ${locked ? "text-gray-400" : "text-[#030914]"}`}>{title}</div>
       <div className={`text-[10px] ${locked ? "text-gray-400" : "text-gray-500"}`}>{subtitle}</div>
+      {earnedLabel && (
+        <div className="text-[9px] uppercase tracking-wider text-[#19aa59]">
+          Earned · {earnedLabel}
+        </div>
+      )}
     </div>
   );
 }
@@ -152,6 +169,7 @@ function roleLabel(user) {
 export default function Profile() {
   const [user, setUser] = useState(null);
   const [stats, setStats] = useState(null);
+  const [achievements, setAchievements] = useState([]);
   const [institutions, setInstitutions] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -166,6 +184,7 @@ export default function Profile() {
         setUser(parsed);
         fetchUserData(parsed.id);
         fetchStats(parsed.id);
+        fetchAchievements(parsed.id);
       } catch (err) {
         console.error("Error parsing user data:", err);
         setIsLoading(false);
@@ -193,6 +212,18 @@ export default function Profile() {
       console.error("Error fetching user data:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchAchievements = async (userId) => {
+    try {
+      const res = await fetch(`/api/users/${userId}/achievements`);
+      if (res.ok) {
+        const data = await res.json();
+        setAchievements(data.achievements || []);
+      }
+    } catch (err) {
+      console.error("Error fetching achievements:", err);
     }
   };
 
@@ -404,30 +435,20 @@ export default function Profile() {
             <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
               <h2 className="mb-4 text-[11px] font-bold tracking-[0.12em] text-gray-500">ACHIEVEMENTS</h2>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <Achievement
-                  icon={Trophy}
-                  title="First 10"
-                  subtitle="Solved 10 challenges"
-                  locked={solvedCount < 10}
-                />
-                <Achievement
-                  icon={Flame}
-                  title="7-day streak"
-                  subtitle="7 days in a row"
-                  locked={streak < 7}
-                />
-                <Achievement
-                  icon={Zap}
-                  title="Speed solver"
-                  subtitle="Under 30 seconds"
-                  locked={!stats?.hasSpeedSolve}
-                />
-                <Achievement
-                  icon={Lock}
-                  title="100 solved"
-                  subtitle="Solve 100 challenges"
-                  locked={solvedCount < 100}
-                />
+                {ACHIEVEMENT_DEFINITIONS.map((def) => {
+                  const earned = achievements.find((a) => a.code === def.code);
+                  const Icon = ICONS[def.icon] || Trophy;
+                  return (
+                    <Achievement
+                      key={def.code}
+                      icon={Icon}
+                      title={def.title}
+                      subtitle={def.subtitle}
+                      locked={!earned}
+                      earnedAt={earned?.earned_at}
+                    />
+                  );
+                })}
               </div>
             </section>
           </div>
