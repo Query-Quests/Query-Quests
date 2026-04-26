@@ -1,69 +1,46 @@
 import {
-  CheckCircle,
-  Trophy,
-  Users,
-  Clock,
-  GraduationCap,
+  Bookmark,
   Code,
   Lightbulb,
   TrendingUp,
   Star,
   Target,
   Zap,
-  Award,
   Eye,
-  EyeOff,
+  Lock,
+  CheckCircle,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { LevelBadge, StatItem } from "./atoms";
+import { LevelBadge, SectionHeader, StatRow } from "./atoms";
 
-const formatDate = (dateString) =>
-  new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+const MONO = {
+  fontFamily: "var(--font-geist-mono), 'Geist Mono', ui-monospace, monospace",
+};
 
 export function DetailsPanel({
   challenge,
-  isExpanded,
   isCompleted,
   attempts,
-  score,
   showHint,
   onToggleHint,
-  showSolution,
-  onToggleSolution,
 }) {
   return (
-    <div
-      className={`bg-white flex flex-col overflow-y-auto border-l border-gray-200 transition-all duration-300 ${
-        isExpanded ? "w-0 overflow-hidden" : "w-1/2"
-      }`}
-    >
+    <div className="flex w-1/2 flex-col overflow-y-auto border-l border-gray-200 bg-white">
       <Header challenge={challenge} isCompleted={isCompleted} />
-
-      <div className="flex-1 p-6 space-y-6">
-        <StatementSection statement={challenge.statement} />
-
-        {challenge.help && (
-          <HintSection help={challenge.help} showHint={showHint} onToggle={onToggleHint} />
-        )}
-
+      <div className="flex flex-col gap-6 px-8 py-6">
+        <StatementSection
+          statement={challenge.statement}
+          showHint={showHint}
+          help={challenge.help}
+          onToggleHint={onToggleHint}
+        />
         <StatsSection
           challenge={challenge}
           attempts={attempts}
           isCompleted={isCompleted}
-          score={score}
         />
-
         <SolutionSection
           solution={challenge.solution}
-          showSolution={showSolution}
           isCompleted={isCompleted}
-          onToggle={onToggleSolution}
         />
       </div>
     </div>
@@ -72,160 +49,104 @@ export function DetailsPanel({
 
 function Header({ challenge, isCompleted }) {
   return (
-    <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <LevelBadge level={challenge.level} />
-          {isCompleted && (
-            <Badge className="bg-[#19aa59]/10 text-[#19aa59] border-0">
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Completed
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-gradient-to-br from-[#19aa59] to-emerald-600 rounded-xl flex items-center justify-center">
-            <Trophy className="h-5 w-5 text-white" />
-          </div>
-        </div>
+    <div className="flex flex-col gap-[14px] border-b border-gray-200 px-8 py-6">
+      <div className="flex items-center justify-between">
+        <LevelBadge level={challenge.level} />
+        <button
+          type="button"
+          aria-label="Bookmark challenge"
+          className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-500 hover:text-[#030914] hover:bg-gray-50 transition"
+        >
+          <Bookmark className="h-3.5 w-3.5" />
+        </button>
       </div>
-
-      <h1 className="text-2xl font-bold text-[#030914] mb-3">
+      <h1
+        className="text-[24px] font-bold text-[#030914] leading-[1.3]"
+        style={{ letterSpacing: "-0.4px" }}
+      >
         {challenge.name || `SQL Challenge #${challenge.id}`}
       </h1>
-
-      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-        <div className="flex items-center gap-1.5">
-          <Users className="h-4 w-4" />
-          <span>{challenge.solves} solves</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Clock className="h-4 w-4" />
-          <span>{formatDate(challenge.created_at)}</span>
-        </div>
-        {challenge.institution && (
-          <div className="flex items-center gap-1.5">
-            <GraduationCap className="h-4 w-4" />
-            <span>{challenge.institution.name}</span>
-          </div>
+      <div className="flex items-center gap-3 text-[12px] text-gray-500">
+        <span style={MONO}>{challenge.solves ?? 0} solves</span>
+        {challenge.institution && <span>· {challenge.institution.name}</span>}
+        {isCompleted && (
+          <span className="inline-flex items-center gap-1 text-[#19aa59]">
+            <CheckCircle className="h-3 w-3" />
+            Completed
+          </span>
         )}
       </div>
     </div>
   );
 }
 
-function StatementSection({ statement }) {
+function StatementSection({ statement, showHint, help, onToggleHint }) {
   return (
-    <div>
-      <h3 className="font-semibold text-[#030914] mb-3 flex items-center gap-2">
-        <div className="w-6 h-6 bg-[#19aa59]/10 rounded-lg flex items-center justify-center">
-          <Code className="h-3.5 w-3.5 text-[#19aa59]" />
+    <div className="flex flex-col gap-2">
+      <SectionHeader icon={Code} iconColor="#19aa59" label="CHALLENGE STATEMENT" />
+      <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <p className="text-[13px] leading-[1.6] text-[#030914]">{statement}</p>
+      </div>
+      {help && (
+        <button
+          type="button"
+          onClick={onToggleHint}
+          className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-[14px] py-[10px] text-[13px] font-semibold text-[#030914] hover:bg-gray-50 transition"
+        >
+          <span className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-[5px] border border-gray-200 bg-gray-100">
+            <Lightbulb className="h-[13px] w-[13px] text-[#030914]" />
+          </span>
+          {showHint ? "Hide hint" : "Reveal a hint"}
+        </button>
+      )}
+      {showHint && help && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-[13px] leading-[1.6] text-blue-800">
+          {help}
         </div>
-        Challenge Statement
-      </h3>
-      <Card className="border-0 shadow-sm bg-gray-50">
-        <CardContent className="p-4">
-          <p className="text-gray-700 leading-relaxed">{statement}</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function HintSection({ help, showHint, onToggle }) {
-  return (
-    <div>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onToggle}
-        className="mb-2 p-0 h-auto text-blue-600 hover:text-blue-700 hover:bg-transparent"
-      >
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
-            <Lightbulb className="h-3.5 w-3.5 text-blue-600" />
-          </div>
-          <span className="font-semibold">{showHint ? "Hide Hint" : "Need a Hint?"}</span>
-        </div>
-      </Button>
-      {showHint && (
-        <Card className="border-0 shadow-sm bg-blue-50">
-          <CardContent className="p-4">
-            <p className="text-sm text-blue-800">{help}</p>
-          </CardContent>
-        </Card>
       )}
     </div>
   );
 }
 
-function StatsSection({ challenge, attempts, isCompleted, score }) {
+function StatsSection({ challenge, attempts, isCompleted }) {
   return (
-    <div>
-      <h3 className="font-semibold text-[#030914] mb-3 flex items-center gap-2">
-        <div className="w-6 h-6 bg-violet-100 rounded-lg flex items-center justify-center">
-          <TrendingUp className="h-3.5 w-3.5 text-violet-600" />
-        </div>
-        Challenge Stats
-      </h3>
-      <Card className="border-0 shadow-sm">
-        <CardContent className="p-4 divide-y divide-gray-100">
-          <StatItem icon={Star} label="Base Score" value={challenge.score_base} />
-          <StatItem icon={Target} label="Minimum Score" value={challenge.score_min} />
-          <StatItem icon={Zap} label="Your Attempts" value={attempts} />
-          {isCompleted && (
-            <div className="pt-3">
-              <div className="flex items-center justify-between bg-[#19aa59]/10 rounded-lg px-3 py-2">
-                <div className="flex items-center gap-2 text-[#19aa59]">
-                  <Award className="h-4 w-4" />
-                  <span className="text-sm font-medium">Your Score</span>
-                </div>
-                <span className="font-bold text-[#19aa59] text-lg">{score}</span>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    <div className="flex flex-col gap-2">
+      <SectionHeader icon={TrendingUp} iconColor="#7c3aed" label="CHALLENGE STATS" />
+      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <StatRow icon={Star} label="Base Score" value={challenge.initial_score ?? challenge.score_base ?? "—"} />
+        <StatRow icon={Target} label="Minimum Score" value={challenge.score_min ?? "—"} />
+        <StatRow icon={Zap} label="Your Attempts" value={attempts} isLast={!isCompleted} />
+        {isCompleted && (
+          <StatRow
+            icon={CheckCircle}
+            label="Your Score"
+            value={challenge.current_score ?? challenge.initial_score ?? "—"}
+            isLast
+          />
+        )}
+      </div>
     </div>
   );
 }
 
-function SolutionSection({ solution, showSolution, isCompleted, onToggle }) {
+function SolutionSection({ solution, isCompleted }) {
   return (
-    <div>
-      <h3 className="font-semibold text-[#030914] mb-3 flex items-center gap-2">
-        <div className="w-6 h-6 bg-amber-100 rounded-lg flex items-center justify-center">
-          <Eye className="h-3.5 w-3.5 text-amber-600" />
+    <div className="flex flex-col gap-2">
+      <SectionHeader icon={Eye} iconColor="#854d0e" label="SOLUTION" />
+      {!isCompleted ? (
+        <div className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-[14px] py-3 text-[12px] font-medium text-gray-500">
+          <Lock className="h-3.5 w-3.5" />
+          Complete challenge to unlock
         </div>
-        Solution
-      </h3>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onToggle}
-        className={`w-full mb-3 ${
-          isCompleted
-            ? "border-[#19aa59]/30 text-[#19aa59] hover:bg-[#19aa59]/10"
-            : "border-gray-200 text-gray-400"
-        }`}
-        disabled={!isCompleted}
-      >
-        {showSolution ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
-        {showSolution ? "Hide Solution" : "View Solution"}
-      </Button>
-      {!isCompleted && (
-        <p className="text-xs text-gray-500 text-center">
-          Complete the challenge to unlock the solution
-        </p>
-      )}
-      {showSolution && isCompleted && (
-        <Card className="border-0 shadow-sm bg-[#030914]">
-          <CardContent className="p-4">
-            <code className="text-sm text-[#19aa59] whitespace-pre-wrap font-mono">
-              {solution}
-            </code>
-          </CardContent>
-        </Card>
+      ) : (
+        <div className="rounded-lg border border-gray-200 bg-[#030914] p-4">
+          <pre
+            className="whitespace-pre-wrap break-words text-[13px] leading-[1.6] text-[#30c888]"
+            style={MONO}
+          >
+            {solution}
+          </pre>
+        </div>
       )}
     </div>
   );

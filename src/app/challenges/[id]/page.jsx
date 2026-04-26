@@ -6,7 +6,6 @@ import Header from "@/components/header";
 import ChallengeSuccessModal from "@/components/ChallengeSuccessModal";
 import { LoadingState, NotFoundState } from "./_components/StatusViews";
 import { Breadcrumb } from "./_components/Breadcrumb";
-import { FullscreenTerminal } from "./_components/FullscreenTerminal";
 import { ConsolePanel } from "./_components/ConsolePanel";
 import { DetailsPanel } from "./_components/DetailsPanel";
 
@@ -19,13 +18,9 @@ export default function ChallengeDetail() {
   const [queryResult, setQueryResult] = useState(null);
   const [queryLoading, setQueryLoading] = useState(false);
   const [queryError, setQueryError] = useState(null);
-  const [showSolution, setShowSolution] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [score, setScore] = useState(0);
-  const [isTerminalExpanded, setIsTerminalExpanded] = useState(false);
-  const [isTerminalFullscreen, setIsTerminalFullscreen] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successData, setSuccessData] = useState(null);
   const [databaseName, setDatabaseName] = useState("practice");
@@ -57,8 +52,6 @@ export default function ChallengeDetail() {
       //   1. The first public ChallengeDataset (Phase B model), if any.
       //   2. The legacy single database on the challenge.
       //   3. Fall back to the seeded `practice` schema.
-      // Hidden datasets are never exposed here — the API filters them
-      // out before this point.
       const publicDataset = challengeData.datasets?.[0];
       if (publicDataset?.database?.mysqlDbName) {
         setDatabaseName(publicDataset.database.mysqlDbName);
@@ -83,52 +76,23 @@ export default function ChallengeDetail() {
       setQueryError("Please enter a SQL query");
       return;
     }
-
     setQueryLoading(true);
     setQueryError(null);
     setQueryResult(null);
-
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const isCorrect = Math.random() > 0.5;
-      setAttempts((prev) => prev + 1);
-
-      if (isCorrect) {
-        setIsCompleted(true);
-        setScore(Math.max(challenge.score_min, challenge.score_base - attempts * 10));
-        setQueryResult({
-          success: true,
-          message: "Congratulations! Your query is correct!",
-          data: [
-            { id: 1, name: "Sample Result", value: "Success" },
-            { id: 2, name: "Another Row", value: "Data" },
-          ],
-        });
-      } else {
-        setQueryResult({
-          success: false,
-          message: "Query executed but results don't match expected output.",
-          data: [{ id: 1, name: "Your Result", value: "Incorrect" }],
-        });
-      }
-    } catch (err) {
-      setQueryError("Failed to execute query: " + err.message);
+      // Real execution happens via XTerminal; this button just focuses it.
+      const helper = document.querySelector(".xterm-helper-textarea");
+      if (helper) helper.focus();
     } finally {
       setQueryLoading(false);
     }
-  };
-
-  const resetQuery = () => {
-    setSqlQuery("-- Write your SQL query here\nSELECT ");
-    setQueryResult(null);
-    setQueryError(null);
   };
 
   const validateQuery = async () => {
     const query = lastQuery || sqlQuery;
 
     if (!query?.trim()) {
-      setQueryError("Please enter a SQL query first");
+      setQueryError("Run a query first");
       return;
     }
     if (!user?.id) {
@@ -176,8 +140,6 @@ export default function ChallengeDetail() {
 
       if (solveResponse.ok && solveData.success) {
         setIsCompleted(true);
-        setScore(solveData.pointsAwarded || 0);
-
         const updatedUser = { ...user, totalScore: solveData.totalScore };
         localStorage.setItem("user", JSON.stringify(updatedUser));
         setUser(updatedUser);
@@ -189,6 +151,7 @@ export default function ChallengeDetail() {
           solvedChallenges: solveData.solvedChallenges,
           nextChallenge: solveData.nextChallenge,
           alreadySolved: solveData.alreadySolved,
+          newlyEarnedAchievements: solveData.newlyEarnedAchievements,
         });
         setShowSuccessModal(true);
 
@@ -217,7 +180,6 @@ export default function ChallengeDetail() {
     if (result.query) setLastQuery(result.query);
     if (result.success && result.type === "challenge_completed") {
       setIsCompleted(true);
-      setScore(result.score);
     }
   };
 
@@ -227,32 +189,15 @@ export default function ChallengeDetail() {
   if (error || !challenge) return <NotFoundState error={error} />;
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="flex h-screen flex-col bg-[#f9f9f9]">
       <Header />
       <Breadcrumb challenge={challenge} />
 
-      {isTerminalFullscreen && (
-        <FullscreenTerminal
-          challenge={challenge}
-          challengeId={params.id}
-          databaseName={databaseName}
-          onClose={() => setIsTerminalFullscreen(false)}
-          onResult={handleTerminalResult}
-          onError={handleTerminalError}
-        />
-      )}
-
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex flex-1 overflow-hidden">
         <ConsolePanel
-          challenge={challenge}
           challengeId={params.id}
           databaseName={databaseName}
-          isExpanded={isTerminalExpanded}
-          onToggleExpanded={setIsTerminalExpanded}
-          onOpenFullscreen={() => setIsTerminalFullscreen(true)}
           isCompleted={isCompleted}
-          showHint={showHint}
-          onToggleHint={() => setShowHint((v) => !v)}
           sqlQuery={sqlQuery}
           queryLoading={queryLoading}
           validating={validating}
@@ -260,21 +205,15 @@ export default function ChallengeDetail() {
           queryError={queryError}
           onExecute={executeQuery}
           onValidate={validateQuery}
-          onReset={resetQuery}
           onTerminalResult={handleTerminalResult}
           onTerminalError={handleTerminalError}
         />
-
         <DetailsPanel
           challenge={challenge}
-          isExpanded={isTerminalExpanded}
           isCompleted={isCompleted}
           attempts={attempts}
-          score={score}
           showHint={showHint}
           onToggleHint={() => setShowHint((v) => !v)}
-          showSolution={showSolution}
-          onToggleSolution={() => setShowSolution((v) => !v)}
         />
       </div>
 
