@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  generateToken,
+  sendVerificationEmail,
+  VERIFICATION_TOKEN_TTL_MS,
+} from "@/lib/email";
 
 export async function GET(request) {
   try {
@@ -127,6 +132,12 @@ export async function POST(request) {
     const bcrypt = require('bcryptjs');
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const verifiedAtCreation = !!isEmailVerified;
+    const verificationToken = verifiedAtCreation ? null : generateToken();
+    const verificationTokenExpiresAt = verifiedAtCreation
+      ? null
+      : new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS);
+
     const userData = {
       name,
       email,
@@ -134,9 +145,11 @@ export async function POST(request) {
       institution_id: institution_id && institution_id !== "none" ? institution_id.toString() : null,
       isAdmin: isAdmin || false,
       isTeacher: isTeacher || false,
-      isEmailVerified: isEmailVerified || false,
+      isEmailVerified: verifiedAtCreation,
+      verificationToken,
+      verificationTokenExpiresAt,
     };
-    
+
     const newUser = await prisma.user.create({
       data: userData,
       include: {
@@ -144,9 +157,21 @@ export async function POST(request) {
       },
     });
 
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = newUser;
-    return NextResponse.json(userWithoutPassword);
+    if (!verifiedAtCreation) {
+      const ok = await sendVerificationEmail(email, name, verificationToken);
+      if (!ok) {
+        console.warn(`User ${newUser.id} created but verification email failed to send`);
+      }
+    }
+
+    // Remove password and tokens from response
+    const { password: _p, verificationToken: _t, ...userWithoutPassword } = newUser;
+    return NextResponse.json({
+      ...userWithoutPassword,
+      message: verifiedAtCreation
+        ? "User created successfully."
+        : "Registration successful! Please check your email to verify your account.",
+    });
   } catch (error) {
     console.error("Error creating user:", error);
     

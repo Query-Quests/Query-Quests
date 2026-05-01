@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendWelcomeEmail } from "@/lib/email";
 
 export async function POST(request) {
   try {
@@ -12,9 +13,8 @@ export async function POST(request) {
       );
     }
 
-    // Find user with the verification token
     const user = await prisma.user.findFirst({
-      where: { verificationToken: token }
+      where: { verificationToken: token },
     });
 
     if (!user) {
@@ -24,19 +24,43 @@ export async function POST(request) {
       );
     }
 
-    // Update user to mark email as verified and remove the token
+    if (user.isEmailVerified) {
+      return NextResponse.json({
+        message: "Email already verified. You can sign in.",
+      });
+    }
+
+    if (
+      user.verificationTokenExpiresAt &&
+      user.verificationTokenExpiresAt < new Date()
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This verification link has expired. Please request a new one.",
+          expired: true,
+        },
+        { status: 400 }
+      );
+    }
+
     await prisma.user.update({
       where: { id: user.id },
       data: {
         isEmailVerified: true,
-        verificationToken: null
-      }
+        verificationToken: null,
+        verificationTokenExpiresAt: null,
+      },
     });
+
+    // Fire-and-forget: don't block the success response if welcome mail fails.
+    sendWelcomeEmail(user.email, user.name).catch((err) =>
+      console.error("Welcome email failed:", err)
+    );
 
     return NextResponse.json({
-      message: "Email verified successfully! You can now log in to your account."
+      message: "Email verified successfully! You can now log in to your account.",
     });
-
   } catch (error) {
     console.error("Error verifying email:", error);
     return NextResponse.json(
@@ -44,4 +68,4 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-} 
+}

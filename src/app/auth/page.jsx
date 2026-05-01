@@ -46,6 +46,8 @@ export default function AuthPage() {
   });
   const [isValidatingEmail, setIsValidatingEmail] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
+  const [showResendVerification, setShowResendVerification] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
   const [loginForm, setLoginForm] = useState({
     email: "",
@@ -92,6 +94,7 @@ export default function AuthPage() {
     setIsLoading(true);
     setError("");
     setSuccess("");
+    setShowResendVerification(false);
 
     try {
       const response = await fetch("/api/auth", {
@@ -113,11 +116,33 @@ export default function AuthPage() {
         }, 1000);
       } else {
         setError(data.error || "Login failed");
+        if (response.status === 403) {
+          setShowResendVerification(true);
+        }
       }
     } catch (error) {
       setError("Network error. Please try again.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setIsResending(true);
+    setSuccess("");
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginForm.email }),
+      });
+      const data = await res.json();
+      setSuccess(data.message || "Verification email sent.");
+      setShowResendVerification(false);
+    } catch {
+      setError("Failed to resend verification email.");
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -230,6 +255,16 @@ export default function AuthPage() {
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
               <p className="text-sm text-red-600 font-medium">{error}</p>
+              {showResendVerification && (
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={isResending}
+                  className="mt-2 text-sm text-[#19aa59] hover:text-[#15934d] font-semibold disabled:opacity-50"
+                >
+                  {isResending ? "Sending..." : "Resend verification email"}
+                </button>
+              )}
             </div>
           )}
           {success && (
@@ -299,9 +334,12 @@ export default function AuthPage() {
                   />
                   <span className="text-sm text-gray-600">Remember me</span>
                 </label>
-                <button type="button" className="text-sm text-[#19aa59] hover:text-[#15934d] font-medium">
+                <Link
+                  href="/forgot-password"
+                  className="text-sm text-[#19aa59] hover:text-[#15934d] font-medium"
+                >
                   Forgot password?
-                </button>
+                </Link>
               </div>
 
               <Button
