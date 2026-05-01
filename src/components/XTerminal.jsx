@@ -75,7 +75,7 @@ const XTerminal = ({
       } else {
         const table = formatTable(data.columns, data.rows);
         term.write(`\r\n${table}\r\n`);
-        if (onQueryResult) onQueryResult(data);
+        if (onQueryResult) onQueryResult({ ...data, query });
       }
     } catch (err) {
       term.write(`\r\n\x1b[31mERROR: ${err.message}\x1b[0m\r\n`);
