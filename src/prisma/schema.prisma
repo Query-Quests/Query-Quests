@@ -23,12 +23,15 @@ model Institution {
 }
 
 model User {
-  id                String              @id @default(uuid())
-  name              String
-  email             String              @unique
-  isEmailVerified   Boolean             @default(false)
-  verificationToken String?
-  password          String
+  id                         String              @id @default(uuid())
+  name                       String
+  email                      String              @unique
+  isEmailVerified            Boolean             @default(false)
+  verificationToken          String?             @unique
+  verificationTokenExpiresAt DateTime?
+  resetToken                 String?             @unique
+  resetTokenExpiresAt        DateTime?
+  password                   String
   isTeacher         Boolean             @default(false)
   isAdmin           Boolean             @default(false)
   solvedChallenges  Int                 @default(0)
