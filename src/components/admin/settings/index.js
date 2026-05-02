@@ -10,3 +10,4 @@ export {
   UsersSettingsForm,
   SystemSettingsForm,
 } from "./SettingsForm";
+export { IntegrationsSettingsForm } from "./IntegrationsSettingsForm";

@@ -1,33 +1,42 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { CHAT_CONFIG } from '../config/chat-config.js';
+import { getAppSetting } from './app-settings.js';
 
 class AnthropicService {
   constructor() {
     this.client = null;
-    this.initialized = false;
+    this.apiKeyInUse = null;
   }
 
   /**
-   * Initialize the Anthropic client
-   * @returns {boolean} - Whether initialization was successful
+   * Initialize (or re-initialize) the Anthropic client.
+   *
+   * The key is resolved at call time from the AppSetting table, falling
+   * back to the ANTHROPIC_API_KEY env var. The client is re-created if
+   * the active key changes (admin rotation), so updates from the admin
+   * panel take effect without a redeploy.
+   *
+   * @returns {Promise<boolean>} - Whether the client is ready.
    */
-  initialize() {
-    if (this.initialized) return true;
-
-    const apiKey = CHAT_CONFIG.ANTHROPIC_API_KEY;
+  async initialize() {
+    const apiKey = await getAppSetting('anthropic_api_key', {
+      envFallback: 'ANTHROPIC_API_KEY',
+    });
     if (!apiKey) {
-      console.error('Anthropic API key not configured. Please set ANTHROPIC_API_KEY in your environment variables.');
+      console.error('Anthropic API key not configured. Set it from the admin panel (Integrations) or via ANTHROPIC_API_KEY.');
+      this.client = null;
+      this.apiKeyInUse = null;
       return false;
     }
-
+    if (this.client && this.apiKeyInUse === apiKey) return true;
     try {
-      this.client = new Anthropic({
-        apiKey: apiKey,
-      });
-      this.initialized = true;
+      this.client = new Anthropic({ apiKey });
+      this.apiKeyInUse = apiKey;
       return true;
     } catch (error) {
       console.error('Failed to initialize Anthropic client:', error);
+      this.client = null;
+      this.apiKeyInUse = null;
       return false;
     }
   }
@@ -41,7 +50,7 @@ class AnthropicService {
    */
   async generateResponse(userMessage, conversationHistory = [], contextData = {}) {
     // Initialize client if not already done
-    if (!this.initialize()) {
+    if (!(await this.initialize())) {
       return "I'm sorry, but my AI service is not properly configured. Please contact your administrator to set up the Anthropic API key.";
     }
 
