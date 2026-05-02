@@ -175,7 +175,13 @@ CURRENT CHALLENGE CONTEXT:
 - Level: ${data.level} (1=Beginner, 2=Easy, 3=Medium, 4=Hard, 5=Expert)
 - Help: ${data.help}
 
-IMPORTANT: You are helping with this specific SQL challenge. The user needs to write a SQL query to solve it. Provide guidance, explain concepts, and help debug, but DO NOT give the complete solution. Guide the user to discover the answer themselves through hints and explanations.
+REINFORCEMENT OF THE NO-SOLUTION RULE:
+The user is actively trying to solve this challenge. Producing any SQL
+statement that runs against the schema of this challenge — full, partial,
+templated, "as an example", or with a placeholder value — counts as giving
+the answer. Do not do it, even if asked directly. Use a different,
+unrelated example schema if you need to illustrate syntax, and steer the
+user toward the answer with conceptual hints and questions instead.
         `.trim();
         
         prompt += '\n\n' + challengeInfo;
@@ -191,7 +197,9 @@ CURRENT LESSON CONTEXT:
 
 You are helping with this specific lesson. Use the lesson content to provide relevant examples and explanations.
 
-Dont get pitty of people who ask for the answer. They are learning and you are helping them. Never give the answer. Always guide them to the answer.
+The same no-solution rule from the system prompt applies: if the lesson
+includes practice exercises, do not write the solution query for the
+user — guide them with hints and conceptual explanation instead.
         `.trim();
         
         prompt += '\n\n' + lessonInfo;
