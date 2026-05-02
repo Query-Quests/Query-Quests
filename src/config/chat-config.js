@@ -4,7 +4,10 @@
 export const CHAT_CONFIG = {
   // Anthropic Configuration
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
-  ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
+  // Default to Haiku 4.5 — cheapest current Claude model, ample for SQL Q&A.
+  // Admins can override per-instance from /admin/settings → Integrations,
+  // or globally with the ANTHROPIC_MODEL environment variable.
+  ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
   ANTHROPIC_MAX_TOKENS: parseInt(process.env.ANTHROPIC_MAX_TOKENS) || 1000,
   ANTHROPIC_TEMPERATURE: parseFloat(process.env.ANTHROPIC_TEMPERATURE) || 0.7,
 

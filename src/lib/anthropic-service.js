@@ -64,8 +64,12 @@ class AnthropicService {
         { role: 'user', content: userMessage }
       ];
 
+      const model = await getAppSetting('anthropic_model', {
+        envFallback: 'ANTHROPIC_MODEL',
+      }) || CHAT_CONFIG.ANTHROPIC_MODEL;
+
       const response = await this.client.messages.create({
-        model: CHAT_CONFIG.ANTHROPIC_MODEL,
+        model,
         max_tokens: CHAT_CONFIG.ANTHROPIC_MAX_TOKENS,
         temperature: CHAT_CONFIG.ANTHROPIC_TEMPERATURE,
         system: systemPrompt,
@@ -220,11 +224,9 @@ Dont get pitty of people who ask for the answer. They are learning and you are h
    */
   getAvailableModels() {
     return [
-      'claude-3-5-sonnet-20241022',
-      'claude-3-5-haiku-20241022',
-      'claude-3-opus-20240229',
-      'claude-3-sonnet-20240229',
-      'claude-3-haiku-20240307'
+      { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5 — fastest & cheapest (recommended)' },
+      { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6 — better quality, higher cost' },
+      { id: 'claude-opus-4-7', label: 'Opus 4.7 — top quality, highest cost' },
     ];
   }
 }
