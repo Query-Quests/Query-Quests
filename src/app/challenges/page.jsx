@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Header from "@/components/header";
-import { Database, Search, Users, AlertCircle } from "lucide-react";
+import { Database, Search, Users, AlertCircle, CheckCircle2 } from "lucide-react";
 
 const FONT_STYLE = {
   fontFamily: "var(--font-geist-sans), Geist, Arial, sans-serif",
@@ -23,6 +23,7 @@ const LEVEL_CONFIG = {
 
 export default function ChallengesPage() {
   const [challenges, setChallenges] = useState([]);
+  const [solvedIds, setSolvedIds] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
@@ -54,11 +55,25 @@ export default function ChallengesPage() {
           url = `/api/challenges?institution=${fullUser.institution_id}`;
         }
 
-        const response = await fetch(url);
+        const [response, statsResponse] = await Promise.all([
+          fetch(url),
+          fetch(`/api/users/${parsedUser.id}/stats`).catch(() => null),
+        ]);
         if (!response.ok) throw new Error("Failed to fetch challenges");
         const data = await response.json();
         if (cancelled) return;
         setChallenges(Array.isArray(data) ? data : data.challenges || []);
+
+        if (statsResponse?.ok) {
+          const stats = await statsResponse.json();
+          if (cancelled) return;
+          const ids = new Set(
+            (stats?.solvedChallenges || [])
+              .map((sc) => sc?.challenge?.id || sc?.challenge_id)
+              .filter(Boolean)
+          );
+          setSolvedIds(ids);
+        }
       } catch (err) {
         if (!cancelled) setError(err.message);
       } finally {
@@ -191,7 +206,11 @@ export default function ChallengesPage() {
               return (
                 <LevelGroup key={lvl} level={lvl} count={items.length}>
                   {items.map((c) => (
-                    <ChallengeRow key={c.id} challenge={c} />
+                    <ChallengeRow
+                      key={c.id}
+                      challenge={c}
+                      solved={solvedIds.has(c.id)}
+                    />
                   ))}
                 </LevelGroup>
               );
@@ -299,7 +318,7 @@ function LevelGroup({ level, count, children }) {
   );
 }
 
-function ChallengeRow({ challenge }) {
+function ChallengeRow({ challenge, solved = false }) {
   const config = LEVEL_CONFIG[challenge.level] || LEVEL_CONFIG[1];
   const score = challenge.current_score ?? challenge.initial_score ?? 0;
   const solves = challenge.solves || 0;
@@ -310,11 +329,19 @@ function ChallengeRow({ challenge }) {
       ? challenge.statement
       : challenge.statement || "";
 
+  const cardClass = solved
+    ? "rounded-xl bg-[#f0fdf4] border border-[#19aa59] px-5 py-[18px] flex flex-col gap-3 hover:border-[#15934d] transition-all group"
+    : "rounded-xl bg-white border border-gray-200 px-5 py-[18px] flex flex-col gap-3 hover:border-gray-300 transition-all group";
+  const cardStyle = solved
+    ? { boxShadow: "0 1px 3px rgba(25,170,89,0.18)" }
+    : { boxShadow: "0 1px 3px rgba(10,18,32,0.04)" };
+
   return (
     <Link
       href={`/challenges/${challenge.id}`}
-      className="rounded-xl bg-white border border-gray-200 px-5 py-[18px] flex flex-col gap-3 hover:border-gray-300 transition-all group"
-      style={{ boxShadow: "0 1px 3px rgba(10,18,32,0.04)" }}
+      className={cardClass}
+      style={cardStyle}
+      aria-label={solved ? `${title} (already solved)` : title}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
@@ -328,6 +355,12 @@ function ChallengeRow({ challenge }) {
           >
             {config.label}
           </span>
+          {solved && (
+            <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-[#19aa59] px-1.5 py-[2px] text-[9px] font-bold text-white tracking-[0.4px]">
+              <CheckCircle2 className="h-2.5 w-2.5" />
+              SOLVED
+            </span>
+          )}
         </div>
         <span
           className="text-[11px] font-medium text-gray-500"
@@ -355,7 +388,7 @@ function ChallengeRow({ challenge }) {
           </span>
         </div>
         <span className="text-[12px] font-semibold text-[#15934d]">
-          Open{" "}
+          {solved ? "Review" : "Open"}{" "}
           <span className="inline-block transition-transform group-hover:translate-x-0.5">
             →
           </span>
