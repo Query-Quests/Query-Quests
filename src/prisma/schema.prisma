@@ -279,3 +279,9 @@ model QueryAttempt {
   @@index([user_id])
   @@index([challenge_id])
 }
+
+model AppSetting {
+  key        String   @id
+  value      String   @db.Text
+  updated_at DateTime @default(now()) @updatedAt
+}

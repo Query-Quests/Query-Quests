@@ -8,10 +8,12 @@ import {
   Palette,
   Database,
   Users,
+  Sparkles,
 } from "lucide-react";
 
 const tabs = [
   { id: "general", label: "General", icon: Settings },
+  { id: "integrations", label: "Integrations", icon: Sparkles },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "security", label: "Security", icon: Shield },
   { id: "appearance", label: "Appearance", icon: Palette },

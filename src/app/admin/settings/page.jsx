@@ -7,6 +7,7 @@ import {
   SettingsTabs,
   SettingsTabContent,
   GeneralSettingsForm,
+  IntegrationsSettingsForm,
   NotificationsSettingsForm,
   SecuritySettingsForm,
   AppearanceSettingsForm,
@@ -62,6 +63,10 @@ const TAB_HEADINGS = {
   general: {
     title: "Organization settings",
     subtitle: "Settings applied across the entire QueryQuest instance.",
+  },
+  integrations: {
+    title: "Integrations",
+    subtitle: "External services used by QueryQuest, such as the Anthropic API for the in-app AI tutor.",
   },
   notifications: {
     title: "Notification settings",
@@ -188,6 +193,10 @@ export default function AdminSettings() {
             settings={settings}
             onChange={handleSettingChange}
           />
+        </SettingsTabContent>
+
+        <SettingsTabContent value="integrations">
+          <IntegrationsSettingsForm />
         </SettingsTabContent>
 
         <SettingsTabContent value="notifications">
