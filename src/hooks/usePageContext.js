@@ -148,22 +148,27 @@ export function usePageContext() {
 }
 
 /**
- * Helper function to extract ID from pathname
+ * Helper function to extract an entity ID from the pathname.
+ *
+ * Challenge and lesson IDs in this app are UUIDs (e.g.
+ * "07f89c63-0cb6-4c87-8c02-f106c196abe6"), not numeric, so we cannot
+ * gate on `/^\d+$/`. We accept any path segment immediately after the
+ * named segment that is not itself a well-known sub-route (so
+ * `/challenges/new` → null, but `/challenges/<uuid>` → the uuid, and
+ * `/challenges/<uuid>/edit` → still the uuid).
+ *
  * @param {string} pathname - Current pathname
  * @param {string} segment - The segment to look for (e.g., 'challenges', 'lessons')
  * @returns {string|null} - Extracted ID or null
  */
+const RESERVED_SUBROUTES = new Set(['new', 'edit', 'create', 'bulk', 'bulk-delete', 'stats']);
+
 function extractIdFromPath(pathname, segment) {
-  const parts = pathname.split('/');
-  const segmentIndex = parts.findIndex(part => part === segment);
-  
-  if (segmentIndex !== -1 && segmentIndex + 1 < parts.length) {
-    const potentialId = parts[segmentIndex + 1];
-    // Check if it's a valid ID (numeric or contains numbers)
-    if (/^\d+$/.test(potentialId)) {
-      return potentialId;
-    }
-  }
-  
-  return null;
+  const parts = pathname.split('/').filter(Boolean);
+  const segmentIndex = parts.findIndex((part) => part === segment);
+  if (segmentIndex === -1 || segmentIndex + 1 >= parts.length) return null;
+
+  const candidate = parts[segmentIndex + 1];
+  if (!candidate || RESERVED_SUBROUTES.has(candidate)) return null;
+  return candidate;
 }
