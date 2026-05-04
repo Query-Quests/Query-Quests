@@ -43,6 +43,9 @@ const XTerminal = ({
   const socketRef = useRef(null);
   const fitAddonRef = useRef(null);
   const inputBufferRef = useRef('');
+  // Cursor offset within inputBufferRef (0..length). Lets the user navigate
+  // mid-line with the arrow keys instead of having to delete back to a typo.
+  const cursorPosRef = useRef(0);
   const modeRef = useRef(null); // 'ws' or 'api'
   // Shell-style history. historyIndex points at the slot the user is viewing;
   // historyIndex === history.length means "fresh line" (the in-progress draft).
@@ -99,6 +102,7 @@ const XTerminal = ({
       // Clear the current line and redraw the prompt with `value` as input.
       term.write('\r\x1b[2Kmysql> ' + value);
       inputBufferRef.current = value;
+      cursorPosRef.current = value.length;
     };
 
     term.onData((data) => {
@@ -107,6 +111,7 @@ const XTerminal = ({
       if (data === '\r') {
         const query = inputBufferRef.current.trim();
         inputBufferRef.current = '';
+        cursorPosRef.current = 0;
         term.write('\r\n');
         if (query) {
           const last = historyRef.current[historyRef.current.length - 1];
@@ -141,19 +146,66 @@ const XTerminal = ({
         } else {
           replaceInputLine(historyRef.current[historyIndexRef.current]);
         }
-      } else if (data === '\x7f' || data === '\b') {
-        if (inputBufferRef.current.length > 0) {
-          inputBufferRef.current = inputBufferRef.current.slice(0, -1);
-          term.write('\b \b');
+      } else if (data === '\x1b[D' || data === '\x1bOD') {
+        // Left arrow — move cursor one cell left within the input.
+        if (cursorPosRef.current > 0) {
+          cursorPosRef.current -= 1;
+          term.write('\x1b[D');
         }
+      } else if (data === '\x1b[C' || data === '\x1bOC') {
+        // Right arrow — move cursor one cell right within the input.
+        if (cursorPosRef.current < inputBufferRef.current.length) {
+          cursorPosRef.current += 1;
+          term.write('\x1b[C');
+        }
+      } else if (
+        data === '\x1b[H' || data === '\x1bOH' || data === '\x1b[1~' || data === '\x01'
+      ) {
+        // Home / Ctrl+A — jump to the start of the input.
+        if (cursorPosRef.current > 0) {
+          term.write(`\x1b[${cursorPosRef.current}D`);
+          cursorPosRef.current = 0;
+        }
+      } else if (
+        data === '\x1b[F' || data === '\x1bOF' || data === '\x1b[4~' || data === '\x05'
+      ) {
+        // End / Ctrl+E — jump to the end of the input.
+        const remaining = inputBufferRef.current.length - cursorPosRef.current;
+        if (remaining > 0) {
+          term.write(`\x1b[${remaining}C`);
+          cursorPosRef.current = inputBufferRef.current.length;
+        }
+      } else if (data === '\x7f' || data === '\b') {
+        // Backspace — delete the char before the cursor and reflow the tail.
+        const pos = cursorPosRef.current;
+        if (pos === 0) return;
+        const buf = inputBufferRef.current;
+        const tail = buf.slice(pos);
+        inputBufferRef.current = buf.slice(0, pos - 1) + tail;
+        cursorPosRef.current = pos - 1;
+        // \b moves cursor back, then we redraw the tail, wipe the orphaned
+        // last char with a space, and step the cursor back into place.
+        term.write('\b' + tail + ' ' + `\x1b[${tail.length + 1}D`);
       } else if (data === '\x03') {
         inputBufferRef.current = '';
+        cursorPosRef.current = 0;
         historyIndexRef.current = historyRef.current.length;
         draftRef.current = '';
         term.write('^C\r\nmysql> ');
       } else if (data >= ' ') {
-        inputBufferRef.current += data;
-        term.write(data);
+        // Insert printable input at the cursor position. When the cursor is
+        // at the end this collapses to a plain echo; mid-line, we redraw the
+        // tail so the existing characters shift right visibly.
+        const pos = cursorPosRef.current;
+        const buf = inputBufferRef.current;
+        const tail = buf.slice(pos);
+        inputBufferRef.current = buf.slice(0, pos) + data + tail;
+        cursorPosRef.current = pos + data.length;
+        if (tail.length === 0) {
+          term.write(data);
+        } else {
+          term.write(data + tail + `\x1b[${tail.length}D`);
+        }
       }
     });
   }, [databaseName, executeViaAPI]);
