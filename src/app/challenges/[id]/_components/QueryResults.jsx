@@ -4,14 +4,14 @@ export function QueryResults({ queryResult, queryError }) {
   if (!queryResult && !queryError) return null;
 
   return (
-    <div className="bg-[#0a1628] border-t border-gray-800">
+    <div className="bg-[#0a1628] border-t border-gray-800 flex-shrink-0">
       <div className="px-4 py-2 border-b border-gray-800">
         <h3 className="font-medium text-[#19aa59] text-sm flex items-center gap-2">
           <Target className="h-4 w-4" />
-          Query Results
+          Validation Result
         </h3>
       </div>
-      <div className="p-4 max-h-64 overflow-y-auto">
+      <div className="p-4 max-h-48 overflow-y-auto">
         {queryError && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
             <div className="flex items-center gap-2 text-red-400 mb-2">
