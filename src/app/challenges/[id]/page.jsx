@@ -175,15 +175,18 @@ export default function ChallengeDetail() {
     }
   };
 
+  // Terminal events only feed the Validate button (lastQuery) and challenge
+  // completion. The QueryResults panel is reserved for explicit Validate
+  // clicks — running ad-hoc queries (DESCRIBE, SHOW TABLES, …) shouldn't
+  // surface a "Try Again" message.
   const handleTerminalResult = (result) => {
-    setQueryResult(result);
     if (result.query) setLastQuery(result.query);
     if (result.success && result.type === "challenge_completed") {
       setIsCompleted(true);
     }
   };
 
-  const handleTerminalError = (err) => setQueryError(err.error);
+  const handleTerminalError = () => {};
 
   if (loading) return <LoadingState />;
   if (error || !challenge) return <NotFoundState error={error} />;

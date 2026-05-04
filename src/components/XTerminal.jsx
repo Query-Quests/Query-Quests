@@ -47,6 +47,11 @@ const XTerminal = ({
   // mid-line with the arrow keys instead of having to delete back to a typo.
   const cursorPosRef = useRef(0);
   const modeRef = useRef(null); // 'ws' or 'api'
+  // Shell-style history. historyIndex points at the slot the user is viewing;
+  // historyIndex === history.length means "fresh line" (the in-progress draft).
+  const historyRef = useRef([]);
+  const historyIndexRef = useRef(0);
+  const draftRef = useRef('');
   const [isConnected, setIsConnected] = useState(false);
   const [fontSize, setFontSize] = useState(14);
 
@@ -93,6 +98,12 @@ const XTerminal = ({
     term.write(`\x1b[38;2;148;163;184mDatabase: ${databaseName} | Read-only mode\x1b[0m\r\n\r\n`);
     term.write('mysql> ');
 
+    const replaceInputLine = (value) => {
+      // Clear the current line and redraw the prompt with `value` as input.
+      term.write('\r\x1b[2Kmysql> ' + value);
+      inputBufferRef.current = value;
+    };
+
     term.onData((data) => {
       if (modeRef.current !== 'api') return;
 
@@ -102,8 +113,17 @@ const XTerminal = ({
         cursorPosRef.current = 0;
         term.write('\r\n');
         if (query) {
+          const last = historyRef.current[historyRef.current.length - 1];
+          if (last !== query) {
+            historyRef.current.push(query);
+            if (historyRef.current.length > 100) historyRef.current.shift();
+          }
+          historyIndexRef.current = historyRef.current.length;
+          draftRef.current = '';
           executeViaAPI(query, term);
         } else {
+          historyIndexRef.current = historyRef.current.length;
+          draftRef.current = '';
           term.write('mysql> ');
         }
       } else if (data === '\x1b[D' || data === '\x1bOD') {
@@ -257,6 +277,14 @@ const XTerminal = ({
     };
     window.addEventListener('resize', handleResize);
 
+    // Refit when the container itself resizes (e.g., the QueryResults panel
+    // appearing/disappearing below). Window-level resize alone misses these.
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== 'undefined' && terminalRef.current) {
+      resizeObserver = new ResizeObserver(handleResize);
+      resizeObserver.observe(terminalRef.current);
+    }
+
     // Skip the WebSocket attempt entirely — it's never up in this
     // environment and the connection-refused noise drowns the console.
     // The HTTP path through /api/shell is the canonical transport.
@@ -264,6 +292,7 @@ const XTerminal = ({
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; }
       if (socketRef.current) { socketRef.current.close(); socketRef.current = null; }
       if (term) term.dispose();
     };
@@ -306,7 +335,6 @@ const XTerminal = ({
           backgroundColor: '#030914',
           fontFamily: 'Menlo, Monaco, "Courier New", monospace',
           fontSize: `${fontSize}px`,
-          minHeight: '400px'
         }}
       />
 
