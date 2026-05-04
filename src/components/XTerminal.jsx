@@ -100,8 +100,11 @@ const XTerminal = ({
 
     const replaceInputLine = (value) => {
       // Clear the current line and redraw the prompt with `value` as input.
+      // The cursor lives at the end of the recalled text so the next
+      // keystroke appends, mirroring how a real shell behaves.
       term.write('\r\x1b[2Kmysql> ' + value);
       inputBufferRef.current = value;
+      cursorPosRef.current = value.length;
     };
 
     term.onData((data) => {
@@ -125,6 +128,26 @@ const XTerminal = ({
           historyIndexRef.current = historyRef.current.length;
           draftRef.current = '';
           term.write('mysql> ');
+        }
+      } else if (data === '\x1b[A' || data === '\x1bOA') {
+        // Up arrow — walk backward through history. Save the in-progress
+        // draft on the first step so Down can restore it.
+        if (historyRef.current.length === 0) return;
+        if (historyIndexRef.current === historyRef.current.length) {
+          draftRef.current = inputBufferRef.current;
+        }
+        if (historyIndexRef.current > 0) {
+          historyIndexRef.current -= 1;
+          replaceInputLine(historyRef.current[historyIndexRef.current]);
+        }
+      } else if (data === '\x1b[B' || data === '\x1bOB') {
+        // Down arrow — walk forward; falling off the end restores the draft.
+        if (historyIndexRef.current >= historyRef.current.length) return;
+        historyIndexRef.current += 1;
+        if (historyIndexRef.current === historyRef.current.length) {
+          replaceInputLine(draftRef.current);
+        } else {
+          replaceInputLine(historyRef.current[historyIndexRef.current]);
         }
       } else if (data === '\x1b[D' || data === '\x1bOD') {
         // Left arrow — move cursor one cell left within the input.
@@ -169,6 +192,8 @@ const XTerminal = ({
       } else if (data === '\x03') {
         inputBufferRef.current = '';
         cursorPosRef.current = 0;
+        historyIndexRef.current = historyRef.current.length;
+        draftRef.current = '';
         term.write('^C\r\nmysql> ');
       } else if (data >= ' ') {
         // Insert printable input at the cursor position. When the cursor is
