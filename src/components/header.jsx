@@ -64,6 +64,9 @@ export default function Header() {
     } catch (error) {
       console.error("Error during logout:", error);
     } finally {
+      if (user?.id) {
+        localStorage.removeItem(`chatbot-messages-${user.id}`);
+      }
       localStorage.removeItem("user");
       router.push("/auth");
     }

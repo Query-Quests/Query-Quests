@@ -30,7 +30,9 @@ class AnthropicService {
     }
     if (this.client && this.apiKeyInUse === apiKey) return true;
     try {
-      this.client = new Anthropic({ apiKey });
+      // maxRetries: the SDK retries 429/5xx/529 (overloaded) with
+      // exponential backoff, smoothing over transient API overloads.
+      this.client = new Anthropic({ apiKey, maxRetries: 5 });
       this.apiKeyInUse = apiKey;
       return true;
     } catch (error) {
@@ -97,6 +99,10 @@ class AnthropicService {
 
       if (error.status === 400) {
         return "I'm sorry, there was an issue with your request. Please try rephrasing your question.";
+      }
+
+      if (error.status === 529) {
+        return "The assistant is very busy right now. Please try again in a few seconds.";
       }
 
       return "I'm sorry, I'm experiencing some technical difficulties. Please try again in a moment.";

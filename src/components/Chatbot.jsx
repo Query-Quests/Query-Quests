@@ -5,19 +5,34 @@ import ChatBubble from './ChatBubble';
 import RightPanelChat from './RightPanelChat';
 import { usePageContext } from '@/hooks/usePageContext';
 
+// Scope chat history to the logged-in user so switching accounts in the
+// same browser doesn't leak one user's conversation to another.
+function getChatStorageKey() {
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user?.id) return `chatbot-messages-${user.id}`;
+  } catch {
+    // fall through
+  }
+  return 'chatbot-messages';
+}
+
 export default function Chatbot({ context = null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
-  
+  const [storageKey, setStorageKey] = useState(null);
+
   // Get context from current page if not provided as prop
   const pageContext = usePageContext();
   const effectiveContext = context || pageContext;
 
   // Load conversation history from localStorage on mount
   useEffect(() => {
-    const savedMessages = localStorage.getItem('chatbot-messages');
+    const key = getChatStorageKey();
+    setStorageKey(key);
+    const savedMessages = localStorage.getItem(key);
     if (savedMessages) {
       setMessages(JSON.parse(savedMessages));
     }
@@ -25,10 +40,10 @@ export default function Chatbot({ context = null }) {
 
   // Save messages to localStorage whenever they change
   useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem('chatbot-messages', JSON.stringify(messages));
+    if (storageKey && messages.length > 0) {
+      localStorage.setItem(storageKey, JSON.stringify(messages));
     }
-  }, [messages]);
+  }, [messages, storageKey]);
 
   // Mark messages as read when chat is opened
   useEffect(() => {
@@ -100,7 +115,9 @@ export default function Chatbot({ context = null }) {
 
   const handleClearChat = () => {
     setMessages([]);
-    localStorage.removeItem('chatbot-messages');
+    if (storageKey) {
+      localStorage.removeItem(storageKey);
+    }
   };
 
   return (
